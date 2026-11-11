@@ -191,6 +191,10 @@ h1, h2, h3, h4 { margin: 0; font-weight: 400; font-family: var(--display); lette
 .pstage #p1 { opacity: 0; }
 .bmap svg { display: block; width: 100%; max-width: 360px; margin: 0 auto; height: auto; }
 .equip a { color: var(--muted); }
+.exbar { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 8px 0; margin: -8px 0; }
+.back { background: var(--card); border: 1px solid var(--line); border-radius: 99px; padding: 9px 14px; color: var(--ink); }
+.backbig { font: 800 12px var(--body); letter-spacing: .1em; text-transform: uppercase; background: var(--accent); color: var(--bg); border: 0; border-radius: 12px; padding: 14px; cursor: pointer; }
+.player svg, .stills svg, .thumb svg { pointer-events: none; }
 </style>
 </head>
 <body>
@@ -268,49 +272,35 @@ function drawProps(props, J, layer) {
   });
   return s;
 }
+/* ---------- figure engine v2: articulated muscle mannequin ---------- */
 function seg(a, b, w1, w2, col) {
   const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
   const p = (q, w, s) => `${(q[0] + nx * w / 2 * s).toFixed(1)},${(q[1] + ny * w / 2 * s).toFixed(1)}`;
   return `<path d="M${p(a, w1, 1)} L${p(b, w2, 1)} L${p(b, w2, -1)} L${p(a, w1, -1)} Z" fill="${col}"/><circle cx="${a[0].toFixed(1)}" cy="${a[1].toFixed(1)}" r="${w1 / 2}" fill="${col}"/><circle cx="${b[0].toFixed(1)}" cy="${b[1].toFixed(1)}" r="${w2 / 2}" fill="${col}"/>`;
 }
-function figure(J, ex, opts = {}) {
-  const hl = new Set(ex.hl || []);
-  const B = C.body, F = C.far, H = C.hl;
-  const col = id => hl.has(id) ? H : B;
-  const fcol = id => hl.has(id) ? C.hlFar : F;
-  let s = `<rect x="0" y="0" width="200" height="200" fill="#000"/>`;
-  if (!opts.thumb) for (let g = 20; g < 200; g += 20) s += ln([g, 0], [g, 200], "#111113", 1) + ln([0, g], [200, g], "#111113", 1);
-  s += ln([0, 188], [200, 188], C.ground, 3);
-  s += drawProps(ex.props, J, "back");
-  if (ex.v === "front") {
-    const leg = S => seg(J["hip" + S], J["kn" + S], 15, 11, col("th" + S)) + seg(J["kn" + S], J["an" + S], 11, 7, col("sh" + S)) + seg(J["an" + S], J["to" + S], 6, 5, B);
-    const arm = S => seg(J["sh" + S], J["el" + S], 11, 8.5, col("ua" + S)) + seg(J["el" + S], J["ha" + S], 8.5, 6, col("fa" + S));
-    s += leg("L") + leg("R");
-    const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-    const sL = add(J.shL, [-2, 0]), sR = add(J.shR, [2, 0]), hL = add(J.hipL, [-3, 0]), hR = add(J.hipR, [3, 0]);
-    const mL = add(mid(sL, hL), [2, 0]), mR = add(mid(sR, hR), [-2, 0]);
-    const poly = (pts, c) => `<polygon points="${pts.map(q => q.map(v => v.toFixed(1)).join(",")).join(" ")}" fill="${c}" stroke="${c}" stroke-width="5" stroke-linejoin="round"/>`;
-    s += poly([sL, sR, mR, mL], col("torsoU")) + poly([mL, mR, hR, hL], col("torsoL"));
-    if (hl.has("lats")) s += poly([add(J.shL, [1, 6]), add(mL, [3, 4]), add(J.shL, [7, 10])], H) + poly([add(J.shR, [-1, 6]), add(mR, [-3, 4]), add(J.shR, [-7, 10])], H);
-    s += seg(J.neck, J.head, 8, 8, B);
-    s += arm("L") + arm("R");
-    ["L", "R"].forEach(S => { if (hl.has("delt") || hl.has("delt" + S)) s += `<circle cx="${J["sh" + S][0]}" cy="${J["sh" + S][1]}" r="7.5" fill="${H}"/>`; });
-  } else {
-    s += seg(J.hip, J.kn2, 14, 10, fcol("th2")) + seg(J.kn2, J.an2, 10, 7, fcol("sh2")) + seg(J.an2, J.to2, 6, 5, F);
-    s += seg(J.neck, J.el2, 10, 8, fcol("ua")) + seg(J.el2, J.ha2, 8, 6, fcol("fa"));
-    s += seg(J.hip, J.mid, 21, 23, col("torsoL")) + seg(J.mid, J.neck, 23, 25, col("torsoU"));
-    if (hl.has("lats")) { const off = dirC((ex._t || 0) - 90); s += seg(add(J.neck, off, 7), add(J.mid, off, 7), 9, 6, H); }
-    s += seg(J.neck, J.head, 8, 8, B);
-    s += seg(J.hip, J.kn, 15, 11, col("th")) + seg(J.kn, J.an, 11, 7, col("sh")) + seg(J.an, J.to, 6, 5, B);
-    s += seg(J.neck, J.el, 11, 8.5, col("ua")) + seg(J.el, J.ha, 8.5, 6, col("fa"));
-    if (hl.has("delt")) s += `<circle cx="${J.neck[0].toFixed(1)}" cy="${J.neck[1].toFixed(1)}" r="7.5" fill="${H}"/>`;
+const NEARP = { base: "#3b3e47", musc: "#6a6e7a", line: "#121316", sec: "#9c5140", hot0: "#cf3a1f", hot1: "#ff6a3c" };
+const FARP = { base: "#212329", musc: "#33363e", line: "#0c0d0f", sec: "#5a322a", hot0: "#7d2616", hot1: "#96301c" };
+function mixHex(a, b, k) { const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); const A = p(a), B = p(b); return "#" + A.map((v, i) => Math.round(v + (B[i] - v) * k).toString(16).padStart(2, "0")).join(""); }
+function smoothPath(pts) {
+  const n = pts.length, f = v => v.toFixed(1); let d = `M${f(pts[0][0])},${f(pts[0][1])}`;
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
+    d += `C${f(p1[0] + (p2[0] - p0[0]) / 6)},${f(p1[1] + (p2[1] - p0[1]) / 6)} ${f(p2[0] - (p3[0] - p1[0]) / 6)},${f(p2[1] - (p3[1] - p1[1]) / 6)} ${f(p2[0])},${f(p2[1])}`;
   }
-  s += `<ellipse cx="${J.head[0].toFixed(1)}" cy="${J.head[1].toFixed(1)}" rx="9" ry="10" fill="${B}"/>`;
-  s += drawProps(ex.props, J, "front");
-  return `<svg viewBox="0 0 200 200" role="img" aria-label="${ex.name}${opts.label ? ", " + opts.label : ""}">${s}</svg>`;
+  return d + "Z";
 }
-
-/* ---------- muscle map (front + back) ---------- */
+// prof rows: [t along a→b, half-width on the front side, half-width on the back side]; fs picks which side is "front"
+function shapeD(a, b, prof, fs) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, fx = -uy * fs, fy = ux * fs;
+  const at = (t, o) => [a[0] + dx * t + fx * o, a[1] + dy * t + fy * o];
+  const p0 = prof[0], p1 = prof[prof.length - 1];
+  const c0 = (p0[1] + p0[2]) * 0.38 / L, c1 = (p1[1] + p1[2]) * 0.38 / L;
+  const pts = prof.map(p => at(p[0], p[1]));
+  pts.push(at(p1[0] + c1, (p1[1] - p1[2]) / 2));
+  for (let i = prof.length - 1; i >= 0; i--) pts.push(at(prof[i][0], -prof[i][2]));
+  pts.push(at(p0[0] - c0, (p0[1] - p0[2]) / 2));
+  return smoothPath(pts);
+}
 const MUSCLE_KEYS = [
   [/upper chest|chest/i, ["chest"]], [/front delt|side delt/i, ["delt"]], [/rear delt/i, ["reardelt"]], [/lower traps/i, ["traps"]],
   [/triceps/i, ["triceps"]], [/biceps|brachialis/i, ["biceps"]], [/forearm/i, ["forearm"]], [/lats/i, ["lats"]], [/upper back/i, ["traps", "upperback"]],
@@ -318,6 +308,120 @@ const MUSCLE_KEYS = [
   [/hamstring/i, ["hams"]], [/calves|soleus|achilles/i, ["calves"]], [/tibialis|shins/i, ["tib"]]
 ];
 function muscleKeys(list) { const pri = new Set(), sec = new Set(); list.forEach((m, i) => MUSCLE_KEYS.forEach(([re, ks]) => { if (re.test(m)) ks.forEach(k => (i === 0 ? pri : sec).add(k)); })); pri.forEach(k => sec.delete(k)); return [pri, sec]; }
+
+function figInner(J, ex, opts = {}) {
+  const [pri, sec] = ex._mk || (ex._mk = muscleKeys(ex.muscles || []));
+  const k = opts.k == null ? 1 : opts.k;
+  const only = (ex.hl || []).some(h => /R$/.test(h)) && !(ex.hl || []).some(h => /L$/.test(h)) ? "R" : null;
+  const col = (P, keys, side) => {
+    if (side && only && side !== only) return P.musc;
+    const ks = [].concat(keys);
+    if (ks.some(x => pri.has(x))) return mixHex(P.hot0, P.hot1, k);
+    if (ks.some(x => sec.has(x))) return P.sec;
+    return P.musc;
+  };
+  const base = (P, a, b, prof, fs) => `<path d="${shapeD(a, b, prof, fs)}" fill="${P.base}" stroke="${P.line}" stroke-width="1.1"/>`;
+  const mus = (c, a, b, prof, fs) => `<path d="${shapeD(a, b, prof, fs)}" fill="${c}"/>`;
+  const dot = (p, r, c) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${r}" fill="${c}"/>`;
+  let s = `<ellipse cx="${J.hip[0].toFixed(1)}" cy="189.5" rx="36" ry="3.6" fill="#18191d"/>` + ln([0, 188.5], [200, 188.5], "#26272c", 1.5);
+  s += drawProps(ex.props, J, "back");
+  const N = NEARP, F = FARP;
+  if (ex.v === "front") {
+    const leg = S => { const h = J["hip" + S], kn = J["kn" + S], an = J["an" + S], to = J["to" + S];
+      return base(N, an, to, [[-0.2, 3, 3], [1, 2.8, 2.8]], 1)
+        + base(N, kn, an, [[0, 5.5, 5.5], [0.3, 6, 6], [1, 3, 3]], 1) + mus(col(N, ["calves", "tib"]), kn, an, [[0.08, 4.2, 4.2], [0.32, 4.7, 4.7], [0.75, 2.3, 2.3]], 1)
+        + base(N, h, kn, [[0, 8.5, 8.5], [0.35, 9, 9], [1, 5.6, 5.6]], 1) + mus(col(N, "quads"), h, kn, [[0.14, 6.4, 6.4], [0.42, 7.1, 7.1], [0.9, 4.1, 4.1]], 1) + dot(kn, 3.4, N.base); };
+    const arm = S => { const sh = J["sh" + S], el = J["el" + S], ha = J["ha" + S];
+      return base(N, sh, el, [[0, 5.8, 5.8], [0.4, 6.2, 6.2], [1, 4.3, 4.3]], 1) + mus(col(N, "biceps", S), sh, el, [[0.28, 3.9, 3.9], [0.55, 4.5, 4.5], [0.88, 3, 3]], 1)
+        + base(N, el, ha, [[0, 4.6, 4.6], [0.3, 5, 5], [1, 2.8, 2.8]], 1) + mus(col(N, "forearm", S), el, ha, [[0.08, 3.5, 3.5], [0.35, 3.8, 3.8], [0.78, 2.1, 2.1]], 1)
+        + dot(el, 3, N.base) + dot(ha, 3.6, N.musc)
+        + mus(col(N, ["delt", "reardelt"], S), sh, el, [[-0.2, 6.3, 6.3], [0.05, 7.5, 7.5], [0.32, 4.9, 4.9]], 1); };
+    const n = J.neck, h = J.hip, P = (o, dx, dy) => [o[0] + dx, o[1] + dy];
+    s += leg("L") + leg("R");
+    const L = [P(n, -5, -3), P(n, -20, 1), P(n, -17.5, 16), P(h, -11.5, -18), P(h, -12.5, -2), P(h, -10, 6), P(h, 0, 8)];
+    const R = [P(h, 10, 6), P(h, 12.5, -2), P(h, 11.5, -18), P(n, 17.5, 16), P(n, 20, 1), P(n, 5, -3)];
+    s += `<path d="${smoothPath(L.concat(R))}" fill="${N.base}" stroke="${N.line}" stroke-width="1.1"/>`;
+    [-1, 1].forEach(m => {
+      s += `<path d="${smoothPath([P(n, 4 * m, -4), P(n, 15 * m, 0.5), P(n, 6 * m, 3.5)])}" fill="${col(N, ["traps", "upperback"])}"/>`;
+      s += `<path d="${smoothPath([P(n, 15.5 * m, 13), P(n, 16.5 * m, 21), P(h, 10.5 * m, -20), P(n, 10.5 * m, 23)])}" fill="${col(N, "lats")}"/>`;
+      s += `<ellipse cx="${(n[0] + 7.6 * m).toFixed(1)}" cy="${(n[1] + 12.5).toFixed(1)}" rx="7" ry="6" fill="${col(N, "chest")}"/>`;
+      for (let r = 0; r < 3; r++) s += `<rect x="${(n[0] + (m < 0 ? -6.3 : 0.7)).toFixed(1)}" y="${(n[1] + 21.5 + r * 7.2).toFixed(1)}" width="5.6" height="6" rx="2" fill="${col(N, "abs")}"/>`;
+    });
+    s += base(N, n, J.head, [[0, 4.3, 4.3], [0.7, 4, 4]], 1) + `<ellipse cx="${J.head[0].toFixed(1)}" cy="${J.head[1].toFixed(1)}" rx="8" ry="9.4" fill="${N.musc}" stroke="${N.line}" stroke-width="1.1"/>`;
+    s += arm("L") + arm("R");
+  } else {
+    const leg = (P, h, kn, an, to) =>
+      base(P, an, to, [[-0.3, 2.8, 3.4], [0.4, 2.8, 3.4], [1, 1.6, 2.8]], -1)
+      + base(P, kn, an, [[0, 5.6, 5.8], [0.3, 5.2, 6.6], [1, 2.9, 3.1]], -1)
+      + mus(col(P, "calves"), kn, an, [[0.06, 5, -0.7], [0.3, 5.8, -0.7], [0.72, 2.5, -0.4]], 1)
+      + mus(col(P, "tib"), kn, an, [[0.1, 4.2, -0.8], [0.4, 4.2, -0.8], [0.85, 2.2, -0.6]], -1)
+      + base(P, h, kn, [[0, 9, 9], [0.35, 9.5, 9], [1, 5.8, 5.6]], -1)
+      + mus(col(P, "hipflex"), h, kn, [[-0.04, 7.6, -2.5], [0.08, 8.2, -2.5]], -1)
+      + mus(col(P, "quads"), h, kn, [[0.2, 8, -1], [0.45, 8.3, -1], [0.9, 4.7, -1]], -1)
+      + mus(col(P, "hams"), h, kn, [[0.14, 7.6, -1], [0.45, 7.8, -1], [0.88, 4.5, -1]], 1)
+      + dot(kn, 3.2, P.base);
+    const arm = (P, sh, el, ha, cap) =>
+      base(P, sh, el, [[0, 6, 6], [0.4, 6.3, 6.3], [1, 4.4, 4.4]], -1)
+      + mus(col(P, "biceps"), sh, el, [[0.3, 5.3, -0.7], [0.56, 5.6, -0.7], [0.88, 3.7, -0.7]], -1)
+      + mus(col(P, "triceps"), sh, el, [[0.24, 5.3, -0.7], [0.5, 5.8, -0.7], [0.88, 3.7, -0.7]], 1)
+      + base(P, el, ha, [[0, 4.6, 4.6], [0.3, 5, 4.8], [1, 2.8, 2.8]], -1)
+      + mus(col(P, "forearm"), el, ha, [[0.08, 3.8, 3.6], [0.35, 4, 3.8], [0.78, 2.2, 2]], -1)
+      + dot(el, 2.8, P.base) + dot(ha, 3.6, P.musc)
+      + (cap ? mus(col(P, "delt"), sh, el, [[-0.18, 6.6, 0.4], [0.04, 7.6, 0.4], [0.34, 4.8, -0.6]], -1) + mus(col(P, "reardelt"), sh, el, [[-0.18, 6.6, 0.4], [0.04, 7.6, 0.4], [0.34, 4.8, -0.6]], 1) : "");
+    const h = J.hip, n = J.neck;
+    const tx = n[0] - h[0], ty = n[1] - h[1], tl = Math.hypot(tx, ty) || 1, ux = tx / tl, uy = ty / tl, fx = -uy, fy = ux; // torso front
+    s += leg(F, h, J.kn2, J.an2, J.to2) + arm(F, n, J.el2, J.ha2, false);
+    s += base(N, h, n, [[0, 9.5, 10], [0.3, 9.5, 9], [0.6, 11, 10], [0.85, 12, 11], [1, 8.5, 9]], 1);
+    s += mus(col(N, "abs"), h, n, [[0.08, 8.2, -0.6], [0.3, 8.2, -0.6], [0.52, 9.2, -0.6]], 1)
+      + mus(col(N, "chest"), h, n, [[0.62, 9.8, -0.6], [0.76, 10.8, -0.6], [0.9, 9.6, -1.5]], 1)
+      + mus(col(N, "lowerback"), h, n, [[0.06, 8.6, -0.6], [0.3, 7.8, -0.6]], -1)
+      + mus(col(N, "lats"), h, n, [[0.4, 7.8, -0.6], [0.6, 8.8, -0.6], [0.8, 9.6, -0.6]], -1)
+      + mus(col(N, ["traps", "upperback"]), h, n, [[0.87, 9.6, -3], [1.0, 7.5, -2]], -1);
+    const hd = J.head, hx = hd[0] - n[0], hy = hd[1] - n[1], hl = Math.hypot(hx, hy) || 1, vx = hx / hl, vy = hy / hl, gx = -vy, gy = vx;
+    s += base(N, n, hd, [[0, 4.4, 4.6], [0.7, 4, 4.2]], 1);
+    s += `<circle cx="${(hd[0] + gx * 3 - vx * 4).toFixed(1)}" cy="${(hd[1] + gy * 3 - vy * 4).toFixed(1)}" r="5.4" fill="${N.musc}"/>` + `<circle cx="${hd[0].toFixed(1)}" cy="${hd[1].toFixed(1)}" r="8.6" fill="${N.musc}"/>`;
+    s += leg(N, h, J.kn, J.an, J.to);
+    s += dot([h[0] - fx * 3.5 - ux * 1, h[1] - fy * 3.5 - uy * 1], 8, col(N, "glutes"));
+    s += arm(N, n, J.el, J.ha, true);
+  }
+  return s + drawProps(ex.props, J, "front");
+}
+const svgWrap = (inner, label) => `<svg viewBox="0 0 200 200" role="img" aria-label="${label}"><rect width="200" height="200" fill="#0b0b0d"/>${inner}</svg>`;
+function figure(J, ex, opts = {}) { return svgWrap(figInner(J, ex, opts), ex.name + (opts.label ? ", " + opts.label : "")); }
+
+/* rigid tween: interpolate targets, re-solve joints so limbs keep their length */
+function tweenJ(ex, k) {
+  const c = ex._tw || (ex._tw = (() => { const D = ex.v === "front" ? FRONT : SIDE; const PA = Object.assign({ v: ex.v }, D, ex.A), PB = Object.assign({ v: ex.v }, D, ex.B); return { PA, PB, JA: solve(Object.assign({ v: ex.v }, ex.A)), JB: solve(Object.assign({ v: ex.v }, ex.B)) }; })());
+  const { PA, PB, JA, JB } = c, lp = (a, b) => a + (b - a) * k, lv = (a, b) => [lp(a[0], b[0]), lp(a[1], b[1])], dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  const limb = (root, rA, rB, mid, end) => { // root now; names of mid/end joints
+    const l1 = lp(dist(rA, JA[mid]), dist(rB, JB[mid])), l2 = lp(dist(JA[mid], JA[end]), dist(JB[mid], JB[end]));
+    const tm = lv(JA[mid], JB[mid]), te = lv(JA[end], JB[end]);
+    const s1 = ik(root, te, l1, l2, 1), s2 = ik(root, te, l1, l2, -1);
+    return dist(s1[0], tm) <= dist(s2[0], tm) ? s1 : s2;
+  };
+  const J = {};
+  if (ex.v === "front") {
+    J.hip = lv(PA.hip, PB.hip); J.neck = add(J.hip, [0, -50]); J.head = add(J.neck, [0, -13]);
+    ["L", "R"].forEach(S => { const m = S === "L" ? -1 : 1;
+      J["sh" + S] = add(J.neck, [16 * m, 4]); J["hip" + S] = add(J.hip, [9 * m, 0]);
+      const a = limb(J["sh" + S], JA["sh" + S], JB["sh" + S], "el" + S, "ha" + S); J["el" + S] = a[0]; J["ha" + S] = a[1];
+      const l = limb(J["hip" + S], JA["hip" + S], JB["hip" + S], "kn" + S, "an" + S); J["kn" + S] = l[0]; J["an" + S] = l[1];
+      J["to" + S] = add(J["an" + S], [6 * m, 1]); });
+    return J;
+  }
+  const t = lp(PA.t, PB.t), ht = lp(PA.ht || 0, PB.ht || 0);
+  J.hip = lv(PA.hip, PB.hip); J.neck = add(J.hip, dirC(t), LEN.torso); J.mid = add(J.hip, dirC(t), LEN.torso * 0.5); J.head = add(J.neck, dirC(t + ht), LEN.head);
+  ["", "2"].forEach(S => {
+    const a = limb(J.neck, JA.neck, JB.neck, "el" + S, "ha" + S); J["el" + S] = a[0]; J["ha" + S] = a[1];
+    const l = limb(J.hip, JA.hip, JB.hip, "kn" + S, "an" + S); J["kn" + S] = l[0]; J["an" + S] = l[1];
+    J["to" + S] = add(J["an" + S], dirC(lp(PA["ft" + S], PB["ft" + S])), LEN.foot);
+  });
+  return J;
+}
+const NF = 24;
+function clipSVG(ex) { let g = ""; for (let i = 0; i < NF; i++) { const k = i / (NF - 1); g += `<g class="fr" style="display:${i ? "none" : "inline"}">${figInner(tweenJ(ex, k), ex, { k })}</g>`; } return svgWrap(g, ex.name + " animation"); }
+
+/* ---------- muscle map (front + back) ---------- */
 function bodyMap(list) {
   const [pri, sec] = muscleKeys(list);
   const c = k => pri.has(k) ? C.hl : sec.has(k) ? C.hlFar : "#3a3b40";
@@ -394,8 +498,8 @@ const EX = {
     steps: ["Kneel with your back knee against the base of a couch and that shin up the cushion.", "Step the other foot forward into a half-kneel.", "Squeeze the glute of the back leg and bring your torso upright.", "Hold for 30 seconds, then switch sides."],
     cues: ["Squeeze the back glute", "Ribs down, don't arch"], mistake: "Arching the lower back instead of opening the hip." },
   bench: { name: "Barbell bench press", v: "side", muscles: ["Chest", "Front delts", "Triceps"], equip: "Barbell + flat bench",
-    A: { hip: [124, 124], t: -90, kn: [148, 112], an: [152, 186], kn2: [146, 114], an2: [148, 186], ha: [72, 66], ha2: [70, 66] },
-    B: { hip: [124, 124], t: -90, kn: [148, 112], an: [152, 186], kn2: [146, 114], an2: [148, 186], el: [66, 140], ha: [80, 108], el2: [64, 140], ha2: [78, 108] },
+    A: { hip: [124, 124], t: -90, an: [158, 186], an2: [154, 186], ha: [72, 66], ha2: [70, 66] },
+    B: { hip: [124, 124], t: -90, an: [158, 186], an2: [154, 186], el: [66, 140], ha: [80, 108], el2: [64, 140], ha2: [78, 108] },
     props: BENCH_FLAT.concat([{ k: "plate", at: "ha", r: 13 }]), hl: ["torsoU", "ua"],
     steps: ["Lie back with eyes under the bar, feet flat and shoulder blades pinched back.", "Grip just outside shoulder width and unrack with straight arms.", "Lower the bar to your lower chest with elbows about 45° from your body.", "Press back up and slightly toward your face until the arms lock."],
     cues: ["Bend the bar apart", "Leg drive through the floor"], mistake: "Flaring the elbows straight out to 90°, which loads the shoulder joint." },
@@ -928,7 +1032,7 @@ let raf = null, playing = true, t0 = 0, tPaused = 0, planScroll = 0, mode = "pho
 const CLIP = 10000, REP = 2500;
 const ease = x => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
 function phaseK(ms) { const p = ms % REP; if (p < 1000) return ease(p / 1000); if (p < 1300) return 1; if (p < 2300) return 1 - ease((p - 1300) / 1000); return 0; }
-function openEx(id) { planScroll = window.scrollY; exId = id; view = "ex"; mode = "diagram"; renderEx(); window.scrollTo(0, 0); }
+function openEx(id) { planScroll = window.scrollY; exId = id; view = "ex"; mode = "diagram"; renderEx(); window.scrollTo(0, 0); const a = document.getElementById("app"); if (a.scrollIntoView) a.scrollIntoView(); }
 function closeEx() { cancelAnimationFrame(raf); view = "plan"; renderPlan(); window.scrollTo(0, planScroll); }
 const PLAY = `<svg viewBox="0 0 14 14"><path d="M3 1.5v11l9-5.5z"/></svg>`, PAUSE = `<svg viewBox="0 0 14 14"><rect x="2.5" y="1.5" width="3.2" height="11" rx="1"/><rect x="8.3" y="1.5" width="3.2" height="11" rx="1"/></svg>`;
 function renderEx() {
@@ -936,12 +1040,12 @@ function renderEx() {
   const JA = solve(Object.assign({ v: e.v }, e.A)), JB = solve(Object.assign({ v: e.v }, e.B));
   const ex = Object.assign({ _t: e.A.t }, e);
   const photo = e.photo && mode === "photo";
-  const stage = photo ? `<div class="pstage"><img src="img/${e.photo}/0.jpg" alt="${esc(e.name)} start position"><img id="p1" src="img/${e.photo}/1.jpg" alt="${esc(e.name)} finish position"></div>` : `<div id="stage">${figure(JA, ex)}</div>`;
+  const stage = photo ? `<div class="pstage"><img src="img/${e.photo}/0.jpg" alt="${esc(e.name)} start position"><img id="p1" src="img/${e.photo}/1.jpg" alt="${esc(e.name)} finish position"></div>` : `<div id="stage">${clipSVG(e)}</div>`;
   const stills = photo
     ? `<figure class="still"><img src="img/${e.photo}/0.jpg" alt="Start"><figcaption><b>01</b>Start</figcaption></figure><figure class="still"><img src="img/${e.photo}/1.jpg" alt="Finish"><figcaption><b>02</b>Finish</figcaption></figure>`
     : `<figure class="still">${figure(JA, ex, { label: "start" })}<figcaption><b>01</b>Start</figcaption></figure><figure class="still">${figure(JB, Object.assign({}, ex, { _t: e.B.t }), { label: "finish" })}<figcaption><b>02</b>Finish</figcaption></figure>`;
   document.getElementById("app").innerHTML = `
-    <button class="back" id="back"><b>‹</b> ${s >= 0 ? DAYS[s].name : "Back"}</button>
+    <div class="exbar"><button class="back" id="back"><b>‹</b> Back to ${s >= 0 ? DAYS[s].name : "plan"}</button></div>
     <div class="dtitle"><h2>${e.name}</h2><div class="mus">${e.muscles.map((m, i) => `<span class="${i === 0 ? "hl" : ""}">${m}</span>`).join("")}</div></div>
     ${e.photo ? `<div class="modes"><button data-mode="diagram" aria-pressed="${mode === "diagram"}">Animation</button><button data-mode="photo" aria-pressed="${mode === "photo"}">Real photo</button></div>` : ""}
     <div class="player">${stage}<div class="pbar"><button class="pbtn" id="pp" aria-label="Pause">${PAUSE}</button><div class="track"><i id="prog"></i></div><span class="time" id="tm">0:00 / 0:10</span></div></div>
@@ -950,10 +1054,12 @@ function renderEx() {
     <section class="howto"><div class="lbl">How to</div><ol>${e.steps.map(x => `<li>${x}</li>`).join("")}</ol></section>
     <section class="howto"><div class="lbl">Cues</div><ul>${e.cues.map(x => `<li>${x}</li>`).join("")}</ul></section>
     <section class="howto warn"><div class="lbl">Don't</div><div style="font-size:14.5px">${e.mistake}</div></section>
+    <button class="backbig" id="back2">Back to workout</button>
     <div class="equip">Equipment: ${e.equip}${e.photo ? ` · Photos: <a href="https://github.com/yuhonas/free-exercise-db">Free Exercise DB</a> (public domain)` : ""}</div>`;
-  document.getElementById("back").onclick = closeEx;
+  document.getElementById("back").onclick = closeEx; document.getElementById("back2").onclick = closeEx;
   document.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { mode = b.dataset.mode; cancelAnimationFrame(raf); renderEx(); });
   const st = document.getElementById("stage"), p1 = document.getElementById("p1"), prog = document.getElementById("prog"), tm = document.getElementById("tm"), pp = document.getElementById("pp");
+  const frs = st ? st.querySelectorAll(".fr") : []; let cur = 0;
   playing = !(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches); tPaused = 0; t0 = performance.now();
   const setBtn = () => { pp.innerHTML = playing ? PAUSE : PLAY; pp.setAttribute("aria-label", playing ? "Pause" : "Play"); };
   setBtn();
@@ -962,7 +1068,7 @@ function renderEx() {
     const ms = playing ? (now - t0) % CLIP : tPaused;
     if (playing) tPaused = ms;
     const k = phaseK(ms);
-    if (p1) p1.style.opacity = k; else if (st) st.innerHTML = figure(lerpJ(JA, JB, k), ex);
+    if (p1) p1.style.opacity = k; else if (frs.length) { const fi = Math.round(k * (NF - 1)); if (fi !== cur) { frs[cur].style.display = "none"; frs[fi].style.display = "inline"; cur = fi; } }
     prog.style.width = (ms / CLIP * 100) + "%";
     tm.textContent = `0:${String(Math.floor(ms / 1000)).padStart(2, "0")} / 0:10`;
     raf = requestAnimationFrame(frame);
