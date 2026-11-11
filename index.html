@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hybrid Build</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Layout: track-meet scoreboard. Phase bib + week rail, 7 lane day strip, giant session name, then exercise cards with per-set logging. Exercise screen: clip, two stills, how-to. */
+  --bg: #0b0b0c;
+  --card: #151517;
+  --card-2: #1e1e21;
+  --ink: #f3efe6;
+  --muted: #8b877e;
+  --line: #29292c;
+  --accent: #ff5b1f;
+  --done: #c8f031;
+  --run: #4cc9f0;
+  --display: "Anton", "Impact", "Arial Narrow", sans-serif;
+  --body: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.4; }
+button { font-family: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 600px; margin: 0 auto; padding: 14px 14px 64px; display: grid; gap: 16px; }
+h1, h2, h3, h4 { margin: 0; font-weight: 400; font-family: var(--display); letter-spacing: .01em; text-transform: uppercase; text-wrap: balance; }
+
+/* header */
+.brand { display: flex; justify-content: space-between; align-items: center; }
+.mark { font: 400 15px var(--display); letter-spacing: .14em; }
+.mark b { color: var(--accent); font-weight: 400; }
+.bib { display: inline-flex; align-items: center; gap: 8px; background: var(--ink); color: var(--bg); border-radius: 6px; padding: 4px 9px 4px 6px; font: 800 11px var(--body); letter-spacing: .08em; text-transform: uppercase; }
+.bib i { font: 400 15px var(--display); font-style: normal; background: var(--accent); color: var(--bg); border-radius: 3px; padding: 0 5px; letter-spacing: .02em; }
+
+/* week rail */
+.weeks { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+.wk { border: 0; background: var(--card); border-radius: 6px; padding: 7px 0 6px; cursor: pointer; display: grid; justify-items: center; gap: 2px; }
+.wk span { font: 400 17px var(--display); line-height: 1; color: var(--muted); }
+.wk em { width: 14px; height: 3px; border-radius: 2px; background: var(--line); }
+.wk.cut em { background: var(--run); }
+.wk.test em { background: var(--done); }
+.wk[aria-pressed="true"] { background: var(--accent); }
+.wk[aria-pressed="true"] span { color: var(--bg); }
+.wk[aria-pressed="true"] em { background: var(--bg); }
+.phase { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; font-size: 12.5px; color: var(--muted); }
+.phase b { font: 400 22px var(--display); color: var(--ink); letter-spacing: .02em; }
+
+/* lanes */
+.lanes { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+.lane { border: 0; border-left: 1px solid var(--line); background: var(--card); padding: 8px 0 0; cursor: pointer; display: grid; justify-items: center; gap: 1px; position: relative; }
+.lane:first-child { border-left: 0; }
+.lane .dow { font: 800 10px var(--body); letter-spacing: .1em; color: var(--muted); }
+.lane .ln { font: 400 24px var(--display); line-height: 1.05; }
+.lane .tag { font: 700 9.5px var(--body); letter-spacing: .06em; color: var(--muted); text-transform: uppercase; }
+.lane .fill { width: 100%; height: 4px; background: var(--line); margin-top: 6px; }
+.lane .fill i { display: block; height: 100%; background: var(--done); }
+.lane.run .ln { color: var(--run); }
+.lane[aria-selected="true"] { background: var(--ink); }
+.lane[aria-selected="true"] .dow, .lane[aria-selected="true"] .tag { color: #55524b; }
+.lane[aria-selected="true"] .ln { color: var(--bg); }
+
+/* session hero */
+.hero { display: grid; gap: 8px; padding: 4px 2px 2px; }
+.hero h2 { font-size: clamp(40px, 12vw, 58px); line-height: .92; color: var(--accent); }
+.hero h2.run { color: var(--run); }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.meta span { font: 700 11.5px var(--body); letter-spacing: .06em; text-transform: uppercase; background: var(--card); border: 1px solid var(--line); border-radius: 99px; padding: 5px 10px; }
+.meta span.hot { border-color: var(--accent); color: var(--accent); }
+.meta span.flag { border-color: var(--done); color: var(--done); }
+
+/* section labels */
+.lbl { display: flex; justify-content: space-between; align-items: baseline; font: 800 11px var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.lbl em { font-style: normal; color: var(--ink); letter-spacing: .04em; }
+
+/* warm-up strip */
+.warm { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.warm::-webkit-scrollbar { display: none; }
+.wcard { flex: 0 0 104px; background: var(--card); border-radius: 12px; border: 1px solid var(--line); overflow: hidden; display: grid; }
+.wcard.on { border-color: var(--done); }
+.wcard .thumb { width: 100%; height: auto; aspect-ratio: 1; border-radius: 0; border: 0; padding: 0; cursor: pointer; background: #000; }
+.wcard .wb { display: grid; grid-template-columns: 1fr 30px; align-items: center; padding: 6px 6px 7px 8px; gap: 4px; }
+.wcard .wn { font: 700 11.5px var(--body); line-height: 1.15; }
+.wcard .wd { font: 400 14px var(--display); color: var(--muted); letter-spacing: .02em; }
+
+/* exercise cards */
+.list { display: grid; gap: 10px; }
+.ss { border-radius: 14px; overflow: hidden; border: 1px solid var(--line); border-left: 4px solid var(--accent); }
+.ss-tag { font: 800 10px var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); padding: 8px 12px 0; background: var(--card); }
+.ss .ex { border: 0; border-radius: 0; }
+.ss .ex + .ex { border-top: 1px solid var(--line); }
+.ex { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 10px 12px; display: grid; gap: 10px; }
+.ex.done { border-color: var(--done); }
+.ss .ex.done { box-shadow: inset 3px 0 0 var(--done); }
+.exhead { display: grid; grid-template-columns: 52px 1fr auto; gap: 12px; align-items: center; background: none; border: 0; text-align: left; padding: 0; cursor: pointer; width: 100%; }
+.thumb { width: 52px; height: 52px; border-radius: 10px; overflow: hidden; background: #000; display: block; border: 1px solid var(--line); }
+.thumb svg { display: block; width: 100%; height: 100%; }
+.exname { font: 700 15px var(--body); line-height: 1.2; display: block; }
+.exsub { font: 600 11.5px var(--body); color: var(--muted); display: block; margin-top: 2px; letter-spacing: .02em; }
+.exsub .p { color: var(--accent); }
+.dose { font: 400 26px var(--display); letter-spacing: .02em; text-align: right; line-height: 1; }
+.dose small { display: block; font: 700 9.5px var(--body); color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-top: 3px; }
+.sets { display: grid; gap: 6px; }
+.set { display: grid; grid-template-columns: 26px 1fr 1fr 42px; gap: 6px; align-items: center; }
+.set .n { font: 400 18px var(--display); color: var(--muted); text-align: center; }
+.field { display: flex; align-items: center; gap: 4px; background: var(--card-2); border: 1px solid transparent; border-radius: 9px; padding: 0 10px; height: 40px; }
+.field input { width: 100%; min-width: 0; background: transparent; border: 0; color: var(--ink); font: 700 16px var(--body); font-variant-numeric: tabular-nums; outline: none; }
+.field input::placeholder { color: #57544e; }
+.field span { color: var(--muted); font: 700 10px var(--body); letter-spacing: .06em; text-transform: uppercase; }
+.field:focus-within { border-color: var(--accent); }
+.chk { width: 42px; height: 40px; border-radius: 9px; border: 1.5px solid var(--line); background: transparent; cursor: pointer; padding: 0; display: grid; place-items: center; }
+.chk svg { width: 18px; height: 18px; stroke: var(--line); }
+.chk[aria-pressed="true"] { background: var(--done); border-color: var(--done); }
+.chk[aria-pressed="true"] svg { stroke: var(--bg); }
+.set.is-done .field { background: #23261a; }
+.wb .chk { width: 30px; height: 30px; border-radius: 8px; }
+.wb .chk svg { width: 14px; height: 14px; }
+
+.longrun { background: var(--card); border-radius: 14px; padding: 18px 16px; border-left: 4px solid var(--run); color: var(--muted); }
+
+/* swaps */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { font: 700 12.5px var(--body); border: 1px solid var(--line); background: var(--card); border-radius: 99px; padding: 7px 12px; cursor: pointer; }
+.chips button b { font: 400 14px var(--display); color: var(--accent); margin-right: 4px; letter-spacing: .02em; }
+.chips button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.swapbox { background: var(--card); border-radius: 12px; padding: 12px 14px; }
+.swapbox ol { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; }
+.textbtn { justify-self: start; font: 600 12px var(--body); background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; padding: 0; }
+
+/* exercise screen */
+.back { justify-self: start; background: none; border: 0; color: var(--muted); font: 800 11px var(--body); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; padding: 4px 0; }
+.back b { color: var(--accent); font-size: 14px; }
+.dtitle h2 { font-size: clamp(34px, 10vw, 48px); line-height: .95; }
+.mus { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.mus span { font: 700 11px var(--body); letter-spacing: .06em; text-transform: uppercase; padding: 4px 9px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+.mus span.hl { border-color: var(--accent); color: var(--accent); }
+.player { border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #000; }
+.player svg { display: block; width: 100%; height: auto; aspect-ratio: 1; max-height: 400px; }
+.pbar { display: grid; grid-template-columns: 38px 1fr auto; gap: 10px; align-items: center; padding: 9px 12px; background: var(--card); }
+.pbtn { width: 38px; height: 38px; border-radius: 50%; border: 0; background: var(--accent); cursor: pointer; display: grid; place-items: center; }
+.pbtn svg { width: 14px; height: 14px; fill: var(--bg); }
+.track { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.track i { display: block; height: 100%; background: var(--accent); }
+.time { font: 400 15px var(--display); color: var(--muted); letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+.stills { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.still { margin: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #000; }
+.still svg { display: block; width: 100%; height: auto; aspect-ratio: 1; }
+.still figcaption { font: 400 15px var(--display); letter-spacing: .06em; padding: 6px 10px; background: var(--card); }
+.still figcaption b { color: var(--accent); font-weight: 400; margin-right: 6px; }
+.howto { background: var(--card); border-radius: 12px; padding: 12px 14px; display: grid; gap: 8px; }
+.howto ol, .howto ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; font-size: 14.5px; }
+.howto.warn { box-shadow: inset 4px 0 0 var(--accent); }
+.equip { font-size: 13px; color: var(--muted); }
+
+@media (max-width: 420px) {
+  .lane .ln { font-size: 20px; }
+  .lane .tag { font-size: 8.5px; }
+  .wk span { font-size: 15px; }
+}
+
+/* v4 additions */
+.thumb img, .still img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.still img { aspect-ratio: 1; height: auto; }
+.lane.off .tag { color: #5d5a54; }
+.lane.off .ln { color: var(--muted); }
+.lane .ran { position: absolute; top: 5px; right: 5px; color: var(--run); line-height: 0; }
+.warnline { font-size: 12.5px; color: var(--done); border-left: 3px solid var(--done); padding: 4px 10px; }
+.toast { font: 700 13px var(--body); background: var(--ink); color: var(--bg); border-radius: 10px; padding: 9px 12px; }
+.hero h2.dim { color: var(--muted); }
+.actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.actions button { font: 800 11px var(--body); letter-spacing: .08em; text-transform: uppercase; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 4px; cursor: pointer; }
+.actions button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.sheet { background: var(--card); border: 1px solid var(--accent); border-radius: 12px; padding: 12px; display: grid; gap: 10px; }
+.sheet .note { font-size: 13.5px; color: var(--muted); }
+.strava { background: var(--card); border-radius: 12px; padding: 10px 12px; display: grid; gap: 6px; border-left: 4px solid var(--run); }
+.strava .lbl em { color: var(--muted); font-weight: 600; }
+.act { display: grid; gap: 1px; }
+.aname { font: 700 14px var(--body); }
+.astat { font: 400 16px var(--display); letter-spacing: .03em; color: var(--run); }
+.foot { display: flex; gap: 16px; flex-wrap: wrap; }
+.modes { display: inline-flex; gap: 4px; background: var(--card); border-radius: 99px; padding: 3px; justify-self: start; }
+.modes button { border: 0; background: none; font: 800 11px var(--body); letter-spacing: .08em; text-transform: uppercase; padding: 7px 12px; border-radius: 99px; cursor: pointer; color: var(--muted); }
+.modes button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.pstage { position: relative; aspect-ratio: 3 / 2; background: #000; }
+.pstage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.pstage #p1 { opacity: 0; }
+.bmap svg { display: block; width: 100%; max-width: 360px; margin: 0 auto; height: auto; }
+.equip a { color: var(--muted); }
+</style>
+</head>
+<body>
+<main class="wrap" id="app"></main>
+
+<script>
+/* ---------- figure engine: original stick-figure illustrations ---------- */
+const LEN = { torso: 50, head: 13, th: 42, sh: 40, ua: 30, fa: 28, foot: 13 };
+const rad = d => d * Math.PI / 180;
+const dirC = deg => [Math.sin(rad(deg)), -Math.cos(rad(deg))]; // compass: 0 up, 90 right, 180 down
+const add = (a, b, k = 1) => [a[0] + b[0] * k, a[1] + b[1] * k];
+function ik(A, C, l1, l2, s) {
+  let dx = C[0] - A[0], dy = C[1] - A[1];
+  let d = Math.hypot(dx, dy);
+  const dd = Math.min(Math.max(d, Math.abs(l1 - l2) + 0.01), l1 + l2 - 0.01);
+  const phi = Math.atan2(dy, dx);
+  const a = Math.acos((l1 * l1 + dd * dd - l2 * l2) / (2 * l1 * dd));
+  const ang = phi + s * a;
+  const J = [A[0] + l1 * Math.cos(ang), A[1] + l1 * Math.sin(ang)];
+  const ex = C[0] - J[0], ey = C[1] - J[1], el = Math.hypot(ex, ey) || 1;
+  return [J, [J[0] + ex / el * l2, J[1] + ey / el * l2]];
+}
+const SIDE = { hip: [92, 104], t: 0, an: [93, 186], an2: [89, 186], ha: [96, 112], ha2: [92, 112], kb: -1, kb2: -1, eb: 1, eb2: 1, ft: 90, ft2: 90 };
+const FRONT = { hip: [100, 104], haL: [80, 112], haR: [120, 112], anL: [90, 186], anR: [110, 186], ebL: 1, ebR: -1, kbL: 1, kbR: -1 };
+function solve(p0) {
+  const J = {};
+  if (p0.v === "front") {
+    const p = Object.assign({}, FRONT, p0);
+    J.hip = p.hip; J.neck = add(p.hip, [0, -50]); J.head = add(J.neck, [0, -13]);
+    J.shL = add(J.neck, [-16, 4]); J.shR = add(J.neck, [16, 4]);
+    J.hipL = add(p.hip, [-9, 0]); J.hipR = add(p.hip, [9, 0]);
+    [["L"], ["R"]].forEach(([s]) => {
+      if (p["el" + s]) { J["el" + s] = p["el" + s]; J["ha" + s] = p["ha" + s]; }
+      else { const r = ik(J["sh" + s], p["ha" + s], LEN.ua, LEN.fa, p["eb" + s]); J["el" + s] = r[0]; J["ha" + s] = r[1]; }
+      if (p["kn" + s]) { J["kn" + s] = p["kn" + s]; J["an" + s] = p["an" + s]; }
+      else { const r = ik(J["hip" + s], p["an" + s], LEN.th, LEN.sh, p["kb" + s]); J["kn" + s] = r[0]; J["an" + s] = r[1]; }
+      J["to" + s] = add(J["an" + s], [s === "L" ? -6 : 6, 1]);
+    });
+    return J;
+  }
+  const p = Object.assign({}, SIDE, p0);
+  J.hip = p.hip; J.neck = add(p.hip, dirC(p.t), LEN.torso); J.head = add(J.neck, dirC(p.t + (p.ht || 0)), LEN.head);
+  J.mid = add(p.hip, dirC(p.t), LEN.torso * 0.5);
+  ["", "2"].forEach(s => {
+    if (p["el" + s]) { J["el" + s] = p["el" + s]; J["ha" + s] = p["ha" + s]; }
+    else { const r = ik(J.neck, p["ha" + s], LEN.ua, LEN.fa, p["eb" + s]); J["el" + s] = r[0]; J["ha" + s] = r[1]; }
+    if (p["kn" + s]) { J["kn" + s] = p["kn" + s]; J["an" + s] = p["an" + s]; }
+    else { const r = ik(J.hip, p["an" + s], LEN.th, LEN.sh, p["kb" + s]); J["kn" + s] = r[0]; J["an" + s] = r[1]; }
+    J["to" + s] = add(J["an" + s], dirC(p["ft" + s]), LEN.foot);
+  });
+  return J;
+}
+function lerpJ(A, B, k) { const o = {}; for (const n in A) o[n] = B[n] ? [A[n][0] + (B[n][0] - A[n][0]) * k, A[n][1] + (B[n][1] - A[n][1]) * k] : A[n]; return o; }
+
+const C = { body: "#6c6f78", far: "#3b3d43", hl: "#ff4b2b", hlFar: "#9a3a24", prop: "#8b877e", propFill: "#1e1e21", ground: "#29292c", cable: "#c8f031" };
+C.prop = "#9a968c"; C.propFill = "#1b1b1e";
+const ln = (a, b, col, w, extra = "") => `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="${col}" stroke-width="${w}" stroke-linecap="round" ${extra}/>`;
+function drawProps(props, J, layer) {
+  let s = "";
+  (props || []).forEach(pr => {
+    const dyn = !!pr.at;
+    if ((layer === "back") === dyn) return;
+    const P = pr.at ? add(J[pr.at] || [0, 0], pr.off || [0, 0]) : null;
+    switch (pr.k) {
+      case "rect": s += `<rect x="${pr.x}" y="${pr.y}" width="${pr.w}" height="${pr.h}" rx="${pr.r || 2}" fill="${C.propFill}" stroke="${C.prop}" stroke-width="1.5"/>`; break;
+      case "poly": s += `<polygon points="${pr.pts.map(q => q.join(",")).join(" ")}" fill="${C.propFill}" stroke="${C.prop}" stroke-width="1.5"/>`; break;
+      case "line": s += ln(pr.a, pr.b, C.prop, pr.w || 4); break;
+      case "post": s += `<rect x="${pr.x - 4}" y="${pr.y1}" width="8" height="${pr.y2 - pr.y1}" fill="${C.propFill}" stroke="${C.prop}" stroke-width="1.5"/>`; break;
+      case "cable": s += ln(pr.from, J[pr.to], C.cable, 1.6) + `<circle cx="${pr.from[0]}" cy="${pr.from[1]}" r="3.5" fill="${C.prop}"/>`; break;
+      case "plate": s += `<circle cx="${P[0].toFixed(1)}" cy="${P[1].toFixed(1)}" r="${pr.r || 12}" fill="${C.propFill}" stroke="${C.prop}" stroke-width="3"/><circle cx="${P[0].toFixed(1)}" cy="${P[1].toFixed(1)}" r="2" fill="${C.prop}"/>`; break;
+      case "db": s += `<rect x="${(P[0] - 8).toFixed(1)}" y="${(P[1] - 3).toFixed(1)}" width="16" height="6" rx="2" fill="${C.prop}"/><rect x="${(P[0] - 9).toFixed(1)}" y="${(P[1] - 6).toFixed(1)}" width="5" height="12" rx="1.5" fill="${C.prop}"/><rect x="${(P[0] + 4).toFixed(1)}" y="${(P[1] - 6).toFixed(1)}" width="5" height="12" rx="1.5" fill="${C.prop}"/>`; break;
+      case "bar": s += ln(J[pr.at], J[pr.to], C.prop, 3.5); break;
+      case "grip": s += `<circle cx="${P[0].toFixed(1)}" cy="${P[1].toFixed(1)}" r="4" fill="${C.prop}"/>`; break;
+    }
+  });
+  return s;
+}
+function seg(a, b, w1, w2, col) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+  const p = (q, w, s) => `${(q[0] + nx * w / 2 * s).toFixed(1)},${(q[1] + ny * w / 2 * s).toFixed(1)}`;
+  return `<path d="M${p(a, w1, 1)} L${p(b, w2, 1)} L${p(b, w2, -1)} L${p(a, w1, -1)} Z" fill="${col}"/><circle cx="${a[0].toFixed(1)}" cy="${a[1].toFixed(1)}" r="${w1 / 2}" fill="${col}"/><circle cx="${b[0].toFixed(1)}" cy="${b[1].toFixed(1)}" r="${w2 / 2}" fill="${col}"/>`;
+}
+function figure(J, ex, opts = {}) {
+  const hl = new Set(ex.hl || []);
+  const B = C.body, F = C.far, H = C.hl;
+  const col = id => hl.has(id) ? H : B;
+  const fcol = id => hl.has(id) ? C.hlFar : F;
+  let s = `<rect x="0" y="0" width="200" height="200" fill="#000"/>`;
+  if (!opts.thumb) for (let g = 20; g < 200; g += 20) s += ln([g, 0], [g, 200], "#111113", 1) + ln([0, g], [200, g], "#111113", 1);
+  s += ln([0, 188], [200, 188], C.ground, 3);
+  s += drawProps(ex.props, J, "back");
+  if (ex.v === "front") {
+    const leg = S => seg(J["hip" + S], J["kn" + S], 15, 11, col("th" + S)) + seg(J["kn" + S], J["an" + S], 11, 7, col("sh" + S)) + seg(J["an" + S], J["to" + S], 6, 5, B);
+    const arm = S => seg(J["sh" + S], J["el" + S], 11, 8.5, col("ua" + S)) + seg(J["el" + S], J["ha" + S], 8.5, 6, col("fa" + S));
+    s += leg("L") + leg("R");
+    const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const sL = add(J.shL, [-2, 0]), sR = add(J.shR, [2, 0]), hL = add(J.hipL, [-3, 0]), hR = add(J.hipR, [3, 0]);
+    const mL = add(mid(sL, hL), [2, 0]), mR = add(mid(sR, hR), [-2, 0]);
+    const poly = (pts, c) => `<polygon points="${pts.map(q => q.map(v => v.toFixed(1)).join(",")).join(" ")}" fill="${c}" stroke="${c}" stroke-width="5" stroke-linejoin="round"/>`;
+    s += poly([sL, sR, mR, mL], col("torsoU")) + poly([mL, mR, hR, hL], col("torsoL"));
+    if (hl.has("lats")) s += poly([add(J.shL, [1, 6]), add(mL, [3, 4]), add(J.shL, [7, 10])], H) + poly([add(J.shR, [-1, 6]), add(mR, [-3, 4]), add(J.shR, [-7, 10])], H);
+    s += seg(J.neck, J.head, 8, 8, B);
+    s += arm("L") + arm("R");
+    ["L", "R"].forEach(S => { if (hl.has("delt") || hl.has("delt" + S)) s += `<circle cx="${J["sh" + S][0]}" cy="${J["sh" + S][1]}" r="7.5" fill="${H}"/>`; });
+  } else {
+    s += seg(J.hip, J.kn2, 14, 10, fcol("th2")) + seg(J.kn2, J.an2, 10, 7, fcol("sh2")) + seg(J.an2, J.to2, 6, 5, F);
+    s += seg(J.neck, J.el2, 10, 8, fcol("ua")) + seg(J.el2, J.ha2, 8, 6, fcol("fa"));
+    s += seg(J.hip, J.mid, 21, 23, col("torsoL")) + seg(J.mid, J.neck, 23, 25, col("torsoU"));
+    if (hl.has("lats")) { const off = dirC((ex._t || 0) - 90); s += seg(add(J.neck, off, 7), add(J.mid, off, 7), 9, 6, H); }
+    s += seg(J.neck, J.head, 8, 8, B);
+    s += seg(J.hip, J.kn, 15, 11, col("th")) + seg(J.kn, J.an, 11, 7, col("sh")) + seg(J.an, J.to, 6, 5, B);
+    s += seg(J.neck, J.el, 11, 8.5, col("ua")) + seg(J.el, J.ha, 8.5, 6, col("fa"));
+    if (hl.has("delt")) s += `<circle cx="${J.neck[0].toFixed(1)}" cy="${J.neck[1].toFixed(1)}" r="7.5" fill="${H}"/>`;
+  }
+  s += `<ellipse cx="${J.head[0].toFixed(1)}" cy="${J.head[1].toFixed(1)}" rx="9" ry="10" fill="${B}"/>`;
+  s += drawProps(ex.props, J, "front");
+  return `<svg viewBox="0 0 200 200" role="img" aria-label="${ex.name}${opts.label ? ", " + opts.label : ""}">${s}</svg>`;
+}
+
+/* ---------- muscle map (front + back) ---------- */
+const MUSCLE_KEYS = [
+  [/upper chest|chest/i, ["chest"]], [/front delt|side delt/i, ["delt"]], [/rear delt/i, ["reardelt"]], [/lower traps/i, ["traps"]],
+  [/triceps/i, ["triceps"]], [/biceps|brachialis/i, ["biceps"]], [/forearm/i, ["forearm"]], [/lats/i, ["lats"]], [/upper back/i, ["traps", "upperback"]],
+  [/^back$|spine/i, ["lowerback"]], [/abs/i, ["abs"]], [/hip flexor/i, ["hipflex"]], [/quads|knees|adductor/i, ["quads"]], [/glute/i, ["glutes"]],
+  [/hamstring/i, ["hams"]], [/calves|soleus|achilles/i, ["calves"]], [/tibialis|shins/i, ["tib"]]
+];
+function muscleKeys(list) { const pri = new Set(), sec = new Set(); list.forEach((m, i) => MUSCLE_KEYS.forEach(([re, ks]) => { if (re.test(m)) ks.forEach(k => (i === 0 ? pri : sec).add(k)); })); pri.forEach(k => sec.delete(k)); return [pri, sec]; }
+function bodyMap(list) {
+  const [pri, sec] = muscleKeys(list);
+  const c = k => pri.has(k) ? C.hl : sec.has(k) ? C.hlFar : "#3a3b40";
+  const sil = "#25262a";
+  const body = cx => {
+    const m = x => cx + (x - 55);
+    return `<circle cx="${m(55)}" cy="18" r="10" fill="${sil}"/>` + seg([m(55), 26], [m(55), 34], 8, 8, sil)
+      + `<polygon points="${m(35)},34 ${m(75)},34 ${m(70)},96 ${m(40)},96" fill="${sil}" stroke="${sil}" stroke-width="6" stroke-linejoin="round"/>`
+      + `<polygon points="${m(39)},94 ${m(71)},94 ${m(70)},112 ${m(40)},112" fill="${sil}" stroke="${sil}" stroke-width="4" stroke-linejoin="round"/>`
+      + seg([m(32), 38], [m(27), 72], 11, 9, sil) + seg([m(27), 72], [m(23), 104], 9, 6, sil)
+      + seg([m(78), 38], [m(83), 72], 11, 9, sil) + seg([m(83), 72], [m(87), 104], 9, 6, sil)
+      + seg([m(46), 108], [m(45), 150], 16, 11, sil) + seg([m(45), 150], [m(45), 188], 11, 7, sil)
+      + seg([m(64), 108], [m(65), 150], 16, 11, sil) + seg([m(65), 150], [m(65), 188], 11, 7, sil);
+  };
+  const E = (x, y, rx, ry, k, rot = 0) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" transform="rotate(${rot} ${x} ${y})" fill="${c(k)}"/>`;
+  const front = body(55)
+    + E(33, 41, 7, 7, "delt") + E(77, 41, 7, 7, "delt")
+    + E(47, 50, 9, 7, "chest") + E(63, 50, 9, 7, "chest")
+    + E(29, 56, 4, 10, "biceps", 8) + E(81, 56, 4, 10, "biceps", -8)
+    + E(25, 87, 3.5, 11, "forearm", 7) + E(85, 87, 3.5, 11, "forearm", -7)
+    + `<rect x="49" y="62" width="12" height="31" rx="4" fill="${c("abs")}"/>` + E(43, 79, 3.5, 9, "abs") + E(67, 79, 3.5, 9, "abs")
+    + E(48, 112, 5, 6, "hipflex") + E(62, 112, 5, 6, "hipflex")
+    + E(45, 131, 7, 17, "quads") + E(65, 131, 7, 17, "quads")
+    + E(43, 168, 3, 12, "tib") + E(67, 168, 3, 12, "tib");
+  const bx = 110;
+  const back = body(55 + bx)
+    + `<polygon points="${165},28 ${179},38 ${165},60 ${151},38" fill="${c("traps")}"/>`
+    + E(143, 41, 7, 7, "reardelt") + E(187, 41, 7, 7, "reardelt")
+    + E(165, 56, 9, 6, "upperback")
+    + `<polygon points="153,50 147,80 161,92 158,62" fill="${c("lats")}"/><polygon points="177,50 183,80 169,92 172,62" fill="${c("lats")}"/>`
+    + E(139, 57, 4.5, 10, "triceps", 8) + E(191, 57, 4.5, 10, "triceps", -8)
+    + `<rect x="160" y="80" width="10" height="16" rx="3" fill="${c("lowerback")}"/>`
+    + E(157, 104, 9, 9, "glutes") + E(173, 104, 9, 9, "glutes")
+    + E(156, 133, 7, 17, "hams") + E(174, 133, 7, 17, "hams")
+    + E(155, 166, 5, 11, "calves") + E(175, 166, 5, 11, "calves");
+  return `<svg viewBox="0 0 220 196" role="img" aria-label="Muscles worked: ${list.join(", ")}">${front}${back}<text x="55" y="195" text-anchor="middle" fill="#6e6a62" font-size="8" font-family="Manrope, sans-serif" letter-spacing="1">FRONT</text><text x="165" y="195" text-anchor="middle" fill="#6e6a62" font-size="8" font-family="Manrope, sans-serif" letter-spacing="1">BACK</text></svg>`;
+}
+
+/* ---------- exercise library ---------- */
+const WALL = { k: "rect", x: 62, y: 30, w: 6, h: 156 };
+const BENCH_FLAT = [{ k: "rect", x: 38, y: 130, w: 118, h: 8 }, { k: "rect", x: 48, y: 138, w: 6, h: 48 }, { k: "rect", x: 138, y: 138, w: 6, h: 48 }];
+const BENCH_INC = [{ k: "poly", pts: [[34, 72], [42, 68], [80, 140], [72, 144]] }, { k: "rect", x: 70, y: 140, w: 44, h: 7 }, { k: "rect", x: 86, y: 147, w: 6, h: 39 }];
+const SEAT_FRONT = [{ k: "rect", x: 76, y: 120, w: 48, h: 8 }, { k: "rect", x: 96, y: 128, w: 8, h: 58 }];
+
+const EX = {
+  backwalk: { name: "Backward sled drag", v: "side", muscles: ["Quads", "Knees (VMO)", "Shins"], equip: "Sled + straps (or just walk backward)",
+    A: { hip: [96, 106], t: 12, an: [104, 186], an2: [80, 182], ft2: 120, ha: [128, 120], ha2: [126, 120] },
+    B: { hip: [90, 106], t: 12, an: [80, 182], ft: 120, an2: [104, 186], ha: [122, 120], ha2: [120, 120] },
+    props: [{ k: "rect", x: 160, y: 168, w: 30, h: 18 }, { k: "cable", from: [160, 172], to: "ha" }], hl: ["th", "th2"],
+    steps: ["Hold the straps at arm's length, facing the sled.", "Sit slightly into your hips and walk backward with short steps.", "Land on the ball of each foot and drive through the front of the thigh.", "Keep tension on the straps the whole time."],
+    cues: ["Small, quick steps", "Knees travel forward over toes"], mistake: "Leaning way back and pulling with the arms instead of pushing with the legs." },
+  tib: { name: "Tibialis raise", v: "side", muscles: ["Tibialis (shins)"], equip: "Wall; tib bar or plate for the weighted version",
+    A: { hip: [80, 104], t: -4, an: [96, 186], an2: [92, 186], ha: [82, 112], ha2: [79, 112] },
+    B: { hip: [80, 104], t: -4, an: [96, 186], an2: [92, 186], ft: 52, ft2: 52, ha: [82, 112], ha2: [79, 112] },
+    props: [WALL], hl: ["sh"],
+    steps: ["Lean your back and butt against a wall with your heels about a foot out.", "Keep your legs straight.", "Pull your toes up toward your shins as high as they go.", "Lower slowly until the balls of your feet touch down, then repeat."],
+    cues: ["Squeeze at the top for a beat", "Further from the wall = harder"], mistake: "Bending the knees or bouncing off the floor to cheat the reps." },
+  patrick: { name: "Patrick step-up", v: "side", muscles: ["Quads (VMO)", "Knees"], equip: "Low step or plate stack (4-8 in)",
+    A: { hip: [86, 88], t: 4, an: [86, 170], ft: 90, an2: [112, 160], ft2: 90, ha: [112, 98], ha2: [110, 98] },
+    B: { hip: [84, 108], t: 10, an: [86, 170], an2: [116, 184], ft2: 62, ha: [118, 110], ha2: [116, 110] },
+    props: [{ k: "rect", x: 62, y: 170, w: 40, h: 16 }], hl: ["th", "sh"],
+    steps: ["Stand on a low step on one foot, heel of that foot elevated if you can.", "Bend the standing knee forward, letting it travel past your toes.", "Lower the other heel down to tap the floor in front of the step.", "Drive back up through the standing leg until it's straight."],
+    cues: ["Knee goes forward, not in", "Light heel tap, no weight shift"], mistake: "Sitting the hips back instead of letting the knee travel forward." },
+  atg: { name: "ATG split squat", v: "side", muscles: ["Quads", "Glutes", "Hip flexors"], equip: "Step for the front foot; DBs once it's easy",
+    A: { hip: [86, 104], t: 4, an: [118, 168], an2: [56, 182], ft2: 140, ha: [90, 160], ha2: [87, 160] },
+    B: { hip: [86, 140], t: 6, an: [118, 168], an2: [52, 182], ft2: 140, ha: [92, 196], ha2: [89, 196] },
+    props: [{ k: "rect", x: 104, y: 168, w: 36, h: 18 }], hl: ["th", "th2"],
+    steps: ["Put your front foot on a low step and take a long stride back.", "Lower straight down, letting the front knee travel well past the toes.", "Go until the back of the front thigh covers the calf and the rear hip stretches.", "Push through the whole front foot to stand back up."],
+    cues: ["Torso tall", "Front heel stays down"], mistake: "Cutting the depth short; the bottom stretch is the whole point." },
+  couch: { name: "Couch stretch", v: "side", muscles: ["Hip flexors", "Quads"], equip: "Couch, bench or wall + a pad",
+    A: { hip: [86, 140], t: 14, kn: [118, 146], an: [122, 186], kn2: [72, 184], an2: [62, 142], ft2: 0, ha: [116, 140], ha2: [114, 140] },
+    B: { hip: [92, 138], t: -4, kn: [120, 146], an: [122, 186], kn2: [72, 184], an2: [62, 142], ft2: 0, ha: [118, 140], ha2: [116, 140] },
+    props: [{ k: "rect", x: 40, y: 118, w: 24, h: 68 }, { k: "rect", x: 62, y: 184, w: 20, h: 3 }], hl: ["th2"],
+    steps: ["Kneel with your back knee against the base of a couch and that shin up the cushion.", "Step the other foot forward into a half-kneel.", "Squeeze the glute of the back leg and bring your torso upright.", "Hold for 30 seconds, then switch sides."],
+    cues: ["Squeeze the back glute", "Ribs down, don't arch"], mistake: "Arching the lower back instead of opening the hip." },
+  bench: { name: "Barbell bench press", v: "side", muscles: ["Chest", "Front delts", "Triceps"], equip: "Barbell + flat bench",
+    A: { hip: [124, 124], t: -90, kn: [148, 112], an: [152, 186], kn2: [146, 114], an2: [148, 186], ha: [72, 66], ha2: [70, 66] },
+    B: { hip: [124, 124], t: -90, kn: [148, 112], an: [152, 186], kn2: [146, 114], an2: [148, 186], el: [66, 140], ha: [80, 108], el2: [64, 140], ha2: [78, 108] },
+    props: BENCH_FLAT.concat([{ k: "plate", at: "ha", r: 13 }]), hl: ["torsoU", "ua"],
+    steps: ["Lie back with eyes under the bar, feet flat and shoulder blades pinched back.", "Grip just outside shoulder width and unrack with straight arms.", "Lower the bar to your lower chest with elbows about 45° from your body.", "Press back up and slightly toward your face until the arms lock."],
+    cues: ["Bend the bar apart", "Leg drive through the floor"], mistake: "Flaring the elbows straight out to 90°, which loads the shoulder joint." },
+  closebench: { name: "Close-grip bench press", v: "side", muscles: ["Triceps", "Chest"], equip: "Barbell or EZ bar + flat bench",
+    A: null, B: null, from: "bench", hl: ["ua", "fa"],
+    steps: ["Set up like a normal bench press with hands about shoulder width.", "Lower the bar to the bottom of your chest, elbows tucked close to your sides.", "Press up by straightening the elbows hard."],
+    cues: ["Elbows tucked", "Shoulder-width grip, not narrower"], mistake: "Gripping so narrow that the wrists bend back and hurt." },
+  incline: { name: "Incline DB press", v: "side", muscles: ["Upper chest", "Front delts", "Triceps"], equip: "Dumbbells + incline bench at 30°",
+    A: { hip: [82, 138], t: -40, kn: [114, 138], an: [124, 186], kn2: [112, 140], an2: [120, 186], ha: [54, 42], ha2: [52, 42] },
+    B: { hip: [82, 138], t: -40, kn: [114, 138], an: [124, 186], kn2: [112, 140], an2: [120, 186], el: [36, 118], ha: [60, 94], el2: [34, 118], ha2: [58, 94] },
+    props: BENCH_INC.concat([{ k: "db", at: "ha" }]), hl: ["torsoU", "delt"],
+    steps: ["Set the bench to about 30° and sit back with a DB on each thigh.", "Kick the DBs up and press them over your upper chest.", "Lower them out and down until you feel a deep chest stretch.", "Press back up, bringing the DBs slightly together at the top."],
+    cues: ["Shoulder blades back", "Deep stretch at the bottom"], mistake: "Setting the bench too steep, which turns it into a shoulder press." },
+  machinepress: { name: "Incline machine press", v: "side", muscles: ["Upper chest", "Front delts"], equip: "Incline chest press machine",
+    from: "incline", noDb: true, hl: ["torsoU"],
+    steps: ["Set the seat so the handles line up with your upper chest.", "Press the handles out until your arms are almost straight.", "Let them come back slowly until you feel a full chest stretch."],
+    cues: ["Pause in the stretch", "Don't lock out hard"], mistake: "Letting the shoulders roll forward at the top." },
+  pecfly: { name: "Seated cable pec fly", v: "front", muscles: ["Chest"], equip: "Two cable stacks + seat",
+    A: { hip: [100, 118], haL: [44, 74], haR: [156, 74], ebL: -1, ebR: 1, knL: [86, 150], anL: [86, 186], knR: [114, 150], anR: [114, 186] },
+    B: { hip: [100, 118], haL: [96, 96], haR: [104, 96], ebL: 1, ebR: -1, knL: [86, 150], anL: [86, 186], knR: [114, 150], anR: [114, 186] },
+    props: SEAT_FRONT.concat([{ k: "post", x: 14, y1: 30, y2: 186 }, { k: "post", x: 186, y1: 30, y2: 186 }, { k: "cable", from: [20, 76], to: "haL" }, { k: "cable", from: [180, 76], to: "haR" }]), hl: ["torsoU"],
+    steps: ["Set both pulleys at shoulder height and sit tall between them.", "Start with arms open wide and a soft bend in the elbows.", "Hug the handles together in front of your chest.", "Open back up slowly until you feel the chest stretch."],
+    cues: ["Elbows stay softly bent", "Chest up the whole time"], mistake: "Turning it into a press by bending and straightening the elbows." },
+  latraise: { name: "Single-arm cable lateral raise", v: "front", muscles: ["Side delts"], equip: "Cable at hand height, cuff or handle",
+    A: { hip: [100, 104], haR: [102, 118], ebR: 1, haL: [62, 92], elL: [72, 82] },
+    B: { hip: [100, 104], haR: [168, 60], ebR: 1, haL: [62, 92], elL: [72, 82] },
+    props: [{ k: "post", x: 30, y1: 40, y2: 186 }, { k: "cable", from: [36, 118], to: "haR" }], hl: ["deltR", "uaR"],
+    steps: ["Stand side-on to the cable with the handle at hand height, holding it with the far hand.", "Start with the hand in front of your hip, cable crossing your body.", "Raise the arm out to the side until it's level with your shoulder.", "Lower slowly back across your body to get the stretch."],
+    cues: ["Lead with the elbow", "Pinky slightly up"], mistake: "Going too heavy and shrugging the weight up with your traps." },
+  latdb: { name: "Lateral raise drop set", v: "front", muscles: ["Side delts"], equip: "Two or three pairs of DBs",
+    A: { hip: [100, 104], haL: [80, 114], haR: [120, 114] },
+    B: { hip: [100, 104], haL: [32, 64], haR: [168, 64], ebL: -1, ebR: 1 },
+    props: [{ k: "db", at: "haL" }, { k: "db", at: "haR" }], hl: ["deltL", "deltR"],
+    steps: ["Do 10 strict raises with your normal weight.", "Keep going with 10 slightly looser reps using a bit of body English.", "Finish with 10 partial reps in the bottom half until the delts give out."],
+    cues: ["Raise out, not up", "Stop at shoulder height"], mistake: "Swinging from the start; the strict reps come first." },
+  yraise: { name: "Cable Y-raise", v: "front", muscles: ["Side delts", "Lower traps"], equip: "Two low cables, crossed",
+    A: { hip: [100, 104], haL: [108, 114], haR: [92, 114], ebL: -1, ebR: 1 },
+    B: { hip: [100, 104], haL: [52, 6], haR: [148, 6], ebL: -1, ebR: 1 },
+    props: [{ k: "post", x: 14, y1: 60, y2: 186 }, { k: "post", x: 186, y1: 60, y2: 186 }, { k: "cable", from: [180, 180], to: "haL" }, { k: "cable", from: [20, 180], to: "haR" }], hl: ["deltL", "deltR"],
+    steps: ["Grab the low cables with opposite hands so they cross in front of you.", "Start with hands crossed in front of your hips.", "Raise your arms up and out into a Y, thumbs pointing up.", "Lower under control back to the cross."],
+    cues: ["Arms in line with your ears at the top", "Light weight, smooth reps"], mistake: "Arching the back to get the arms higher." },
+  ohext: { name: "Overhead cable triceps extension", v: "side", muscles: ["Triceps (long head)"], equip: "Cable at chest height + bar or rope",
+    A: { hip: [92, 104], t: 22, an: [124, 186], an2: [66, 186], ft2: 110, el: [122, 26], ha: [104, 40], el2: [120, 28], ha2: [102, 42] },
+    B: { hip: [92, 104], t: 22, an: [124, 186], an2: [66, 186], ft2: 110, ha: [150, 14], ha2: [148, 16] },
+    props: [{ k: "post", x: 20, y1: 40, y2: 186 }, { k: "cable", from: [26, 96], to: "ha" }], hl: ["ua"],
+    steps: ["Face away from the cable in a split stance and lean forward a little.", "Hold the bar or rope behind your head with elbows pointing forward.", "Straighten your arms out in front and up until they lock.", "Let the hands come back behind your head slowly for a deep stretch."],
+    cues: ["Elbows stay up and in", "Big stretch behind the head"], mistake: "Letting the elbows drift down, which turns it into a pushdown." },
+  pushdown: { name: "Rope pushdown", v: "side", muscles: ["Triceps"], equip: "High cable + rope",
+    A: { hip: [92, 104], t: 10, el: [100, 86], ha: [124, 74], el2: [98, 86], ha2: [122, 74] },
+    B: { hip: [92, 104], t: 10, el: [100, 86], ha: [106, 114], el2: [98, 86], ha2: [104, 114] },
+    props: [{ k: "post", x: 152, y1: 16, y2: 186 }, { k: "cable", from: [146, 24], to: "ha" }], hl: ["ua"],
+    steps: ["Stand facing a high cable with a slight forward lean.", "Pin your elbows to your sides.", "Push the rope down until your arms are straight, spreading the ends apart.", "Let the rope rise back to chest height without the elbows moving."],
+    cues: ["Elbows glued to your ribs", "Spread the rope at the bottom"], mistake: "Leaning over the rope and pushing with body weight." },
+  legraise: { name: "Hanging leg raise", v: "side", muscles: ["Abs", "Hip flexors"], equip: "Pull-up bar",
+    A: { hip: [100, 118], t: 0, ha: [100, 10], ha2: [98, 10], an: [102, 198], an2: [98, 198] },
+    B: { hip: [100, 118], t: 4, ha: [100, 10], ha2: [98, 10], an: [180, 104], an2: [178, 108] },
+    props: [{ k: "line", a: [60, 9], b: [140, 9], w: 5 }], hl: ["torsoL"],
+    steps: ["Hang from the bar with straight arms and legs together.", "Brace your abs and stop any swinging.", "Raise your legs until they're at least level with your hips.", "Lower slowly without letting momentum take over."],
+    cues: ["Tilt the pelvis up at the top", "No swinging"], mistake: "Swinging the legs up with momentum instead of curling with the abs." },
+  boxjump: { name: "Box jump + pogo hops", v: "side", muscles: ["Quads", "Glutes", "Calves"], equip: "Plyo box (20-30 in)",
+    A: { hip: [72, 140], t: 40, an: [80, 186], an2: [76, 186], ha: [52, 150], ha2: [50, 150] },
+    B: { hip: [134, 108], t: 28, an: [146, 148], an2: [142, 148], ha: [170, 100], ha2: [168, 100] },
+    props: [{ k: "rect", x: 118, y: 148, w: 48, h: 38 }], hl: ["th", "sh"],
+    steps: ["Stand a foot from the box, then dip and swing your arms back.", "Jump up explosively, driving the arms forward.", "Land softly on the box in a quarter squat.", "Step down, reset, repeat. For pogos: small, stiff, fast bounces off the balls of your feet."],
+    cues: ["Land quiet", "Step down, don't jump down"], mistake: "Picking a box so high you land in a deep squat." },
+  squat: { name: "Back squat", v: "side", muscles: ["Quads", "Glutes", "Adductors"], equip: "Barbell + rack",
+    A: { hip: [92, 104], t: 6, el: [86, 70], ha: [104, 58], el2: [84, 70], ha2: [102, 58] },
+    B: { hip: [70, 148], t: 38, an: [96, 186], an2: [92, 186], el: [92, 126], ha: [112, 116], el2: [90, 126], ha2: [110, 116] },
+    props: [{ k: "plate", at: "neck", off: [-6, -3], r: 13 }], hl: ["th", "th2"],
+    steps: ["Set the bar on your upper back, brace, and walk it out.", "Feet about shoulder width, toes slightly out.", "Sit down between your heels, knees tracking over your toes, to at least parallel.", "Drive up through the whole foot, chest and hips rising together."],
+    cues: ["Big breath and brace before each rep", "Knees out"], mistake: "Hips shooting up first so it turns into a good morning." },
+  nordic: { name: "Nordic curl (banded)", v: "side", muscles: ["Hamstrings"], equip: "Anchor for the ankles + pad; band for assistance",
+    A: { hip: [94, 140], t: 2, kn: [92, 182], an: [58, 182], ft: 270, kn2: [90, 182], an2: [56, 182], ft2: 270, ha: [112, 104], ha2: [110, 104] },
+    B: { hip: [124, 158], t: 58, kn: [92, 182], an: [58, 182], ft: 270, kn2: [90, 182], an2: [56, 182], ft2: 270, ha: [182, 176], ha2: [180, 176] },
+    props: [{ k: "rect", x: 44, y: 168, w: 20, h: 8 }, { k: "rect", x: 78, y: 184, w: 30, h: 3 }], hl: ["th", "th2"],
+    steps: ["Kneel on a pad with your ankles locked under something solid.", "Keep a straight line from knees to head, hips locked.", "Lower yourself forward as slowly as you can, fighting with the hamstrings.", "Catch yourself with your hands, then push back up and repeat."],
+    cues: ["Squeeze the glutes", "3-5 second lowering"], mistake: "Bending at the hips, which takes the hamstrings out of it." },
+  slant: { name: "Slant-board goblet squat", v: "side", muscles: ["Quads", "Knees (VMO)"], equip: "Slant board or plates under heels + DB",
+    A: { hip: [80, 96], t: 2, an: [82, 178], ft: 112, an2: [78, 178], ft2: 112, ha: [98, 76], ha2: [96, 76] },
+    B: { hip: [76, 146], t: 14, an: [82, 178], ft: 112, an2: [78, 178], ft2: 112, ha: [100, 112], ha2: [98, 112] },
+    props: [{ k: "poly", pts: [[70, 186], [124, 186], [70, 174]] }, { k: "db", at: "ha" }], hl: ["th"],
+    steps: ["Stand with heels on a slant board, holding a DB at your chest.", "Squat straight down, letting your knees travel far past your toes.", "Keep your torso upright and go all the way to the bottom.", "Stand back up through the balls of your feet."],
+    cues: ["Torso tall", "Knees forward, all the way down"], mistake: "Sitting the hips back like a regular squat." },
+  calfraise: { name: "Standing calf raise", v: "side", muscles: ["Calves (gastrocnemius)"], equip: "Step, machine or DB",
+    A: { hip: [92, 104] },
+    B: { hip: [92, 93], an: [93, 175], ft: 148, an2: [89, 175], ft2: 148, ha: [96, 101], ha2: [92, 101] },
+    props: [], hl: ["sh", "sh2"],
+    steps: ["Stand with the balls of your feet on a step, knees straight.", "Lower your heels below the step for a full stretch and pause 2 seconds.", "Rise up as high as you can onto your toes.", "Lower slowly back into the stretch."],
+    cues: ["Pause in the stretch", "Knees stay straight"], mistake: "Bouncing out of the bottom instead of pausing." },
+  bayesian: { name: "Face-away Bayesian cable curl", v: "side", muscles: ["Biceps (long head)"], equip: "Low cable + single handle",
+    A: { hip: [94, 104], t: 4, an: [112, 186], an2: [74, 186], ft2: 110, ha: [62, 126], ha2: [96, 112] },
+    B: { hip: [94, 104], t: 4, an: [112, 186], an2: [74, 186], ft2: 110, el: [84, 84], ha: [100, 64], ha2: [96, 112] },
+    props: [{ k: "post", x: 24, y1: 60, y2: 186 }, { k: "cable", from: [30, 176], to: "ha" }], hl: ["ua", "fa"],
+    steps: ["Face away from a low cable and take a step forward so your arm is pulled behind you.", "Let the working arm hang back behind your torso.", "Curl the handle up, keeping the elbow back behind your body.", "Lower all the way until the arm is straight and stretched behind you."],
+    cues: ["Elbow stays back", "Full stretch every rep"], mistake: "Letting the elbow swing forward, which removes the stretch." },
+  pullup: { name: "Pull-up", v: "front", muscles: ["Lats", "Upper back", "Biceps"], equip: "Pull-up bar; belt for weight later",
+    A: { hip: [100, 118], haL: [70, 10], haR: [130, 10], anL: [94, 196], anR: [106, 196] },
+    B: { hip: [100, 76], haL: [70, 10], haR: [130, 10], ebL: -1, ebR: 1, anL: [96, 154], anR: [104, 154] },
+    props: [{ k: "line", a: [40, 9], b: [160, 9], w: 5 }], hl: ["lats"],
+    steps: ["Hang with hands a bit wider than shoulders, arms straight.", "Pull your shoulder blades down first.", "Drive your elbows down to your sides until your chin clears the bar.", "Lower all the way to a dead hang."],
+    cues: ["Elbows to back pockets", "Full hang every rep"], mistake: "Half reps that stop short of a straight-arm hang." },
+  csrow: { name: "Chest-supported row", v: "side", muscles: ["Upper back", "Lats", "Rear delts"], equip: "Incline bench + DBs, or T-bar machine",
+    A: { hip: [84, 146], t: 52, an: [64, 186], an2: [60, 186], kb: 1, kb2: 1, ha: [126, 166], ha2: [124, 166] },
+    B: { hip: [84, 146], t: 52, an: [64, 186], an2: [60, 186], kb: 1, kb2: 1, el: [102, 100], ha: [112, 126], el2: [100, 100], ha2: [110, 126] },
+    props: [{ k: "poly", pts: [[74, 168], [128, 112], [134, 118], [80, 174]] }, { k: "rect", x: 76, y: 172, w: 6, h: 14 }, { k: "db", at: "ha" }], hl: ["lats", "delt"],
+    steps: ["Lie chest-down on a 30-45° incline bench, DBs hanging straight down.", "Let the shoulder blades spread for a full stretch at the bottom.", "Row the elbows back and up toward your hips.", "Lower slowly back to the full stretch."],
+    cues: ["Chest stays on the pad", "Pull with the elbows"], mistake: "Lifting the chest off the pad to heave the weight." },
+  rowmachine: { name: "Chest-supported row machine", v: "side", muscles: ["Upper back", "Lats"], equip: "Chest-supported row machine",
+    from: "csrow", noDb: true, hl: ["lats"],
+    steps: ["Set the chest pad so you can just reach the handles with straight arms.", "Row the handles back, driving elbows behind you.", "Let them go forward slowly until your shoulder blades spread."],
+    cues: ["Chest on the pad", "Full stretch forward"], mistake: "Cutting the stretch short at the front." },
+  pulldown: { name: "Wide-grip lat pulldown", v: "front", muscles: ["Lats", "Upper back"], equip: "Lat pulldown station",
+    A: { hip: [100, 124], haL: [52, 20], haR: [148, 20], knL: [88, 150], anL: [88, 186], knR: [112, 150], anR: [112, 186] },
+    B: { hip: [100, 124], haL: [56, 72], haR: [144, 72], ebL: 1, ebR: -1, knL: [88, 150], anL: [88, 186], knR: [112, 150], anR: [112, 186] },
+    props: SEAT_FRONT.concat([{ k: "rect", x: 76, y: 138, w: 48, h: 7 }, { k: "bar", at: "haL", to: "haR" }]), hl: ["lats"],
+    steps: ["Sit with thighs locked under the pad and grab the bar wide.", "Lean back slightly and pull your shoulder blades down.", "Pull the bar to your upper chest, elbows driving down.", "Let it rise until your arms are fully straight and the lats stretch."],
+    cues: ["Chest up to the bar", "Full stretch at the top"], mistake: "Leaning way back and turning it into a row." },
+  closepulldown: { name: "Close-grip lat pulldown", v: "front", muscles: ["Lats", "Lower lats"], equip: "Pulldown with V-handle",
+    A: { hip: [100, 124], haL: [94, 18], haR: [106, 18], ebL: -1, ebR: 1, knL: [88, 150], anL: [88, 186], knR: [112, 150], anR: [112, 186] },
+    B: { hip: [100, 124], haL: [96, 76], haR: [104, 76], ebL: 1, ebR: -1, knL: [88, 150], anL: [88, 186], knR: [112, 150], anR: [112, 186] },
+    props: SEAT_FRONT.concat([{ k: "rect", x: 76, y: 138, w: 48, h: 7 }, { k: "bar", at: "haL", to: "haR" }]), hl: ["lats"],
+    steps: ["Grab a V-handle with palms facing each other.", "Pull it to your upper chest, elbows tight to your sides.", "Let it rise all the way until you feel the lats stretch."],
+    cues: ["Elbows to hips", "Stretch at the top"], mistake: "Short reps that never straighten the arms." },
+  onearmpd: { name: "Half-kneeling 1-arm pulldown", v: "side", muscles: ["Lats"], equip: "High cable + single handle",
+    A: { hip: [90, 140], t: 2, kn: [120, 146], an: [124, 186], kn2: [80, 184], an2: [52, 184], ft2: 270, ha: [112, 34], ha2: [100, 128] },
+    B: { hip: [90, 140], t: 4, kn: [120, 146], an: [124, 186], kn2: [80, 184], an2: [52, 184], ft2: 270, el: [86, 116], ha: [100, 94], ha2: [100, 128] },
+    props: [{ k: "post", x: 136, y1: 4, y2: 186 }, { k: "cable", from: [130, 10], to: "ha" }], hl: ["lats"],
+    steps: ["Half-kneel facing a high cable, handle in one hand.", "Let the arm reach up and forward for a big lat stretch.", "Pull the elbow down to your side.", "Let it ride back up slowly to the stretch."],
+    cues: ["Elbow to hip", "Reach long at the top"], mistake: "Twisting the torso to move more weight." },
+  facepull: { name: "Face pull", v: "side", muscles: ["Rear delts", "Upper back"], equip: "Cable at face height + rope",
+    A: { hip: [92, 104], t: 2, ha: [150, 58], ha2: [148, 60] },
+    B: { hip: [92, 104], t: 0, el: [84, 44], ha: [104, 40], el2: [82, 46], ha2: [102, 42] },
+    props: [{ k: "post", x: 166, y1: 16, y2: 186 }, { k: "cable", from: [160, 54], to: "ha" }], hl: ["delt"],
+    steps: ["Set the rope at face height and step back with arms straight.", "Pull the rope toward your face, elbows high.", "Pull the ends apart beside your ears.", "Return slowly to straight arms."],
+    cues: ["Elbows high", "Thumbs point back at the finish"], mistake: "Pulling down to the chest, which turns it into a row." },
+  ezcurl: { name: "EZ-bar curl", v: "side", muscles: ["Biceps"], equip: "EZ bar",
+    A: { hip: [92, 104], t: 0 },
+    B: { hip: [92, 104], t: -3, el: [94, 84], ha: [114, 62], el2: [92, 84], ha2: [112, 62] },
+    props: [{ k: "plate", at: "ha", r: 8 }], hl: ["ua"],
+    steps: ["Stand tall holding the EZ bar on the angled grips, arms straight.", "Curl it up, keeping your elbows by your sides.", "Squeeze at the top without letting the elbows drift forward.", "Lower all the way down to straight arms."],
+    cues: ["Elbows pinned", "Control the way down"], mistake: "Swinging the hips to start every rep." },
+  inclinecurl: { name: "Incline DB curl", v: "side", muscles: ["Biceps (long head)"], equip: "Incline bench at 45-60° + DBs",
+    A: { hip: [82, 138], t: -34, kn: [114, 138], an: [124, 186], kn2: [112, 140], an2: [120, 186], ha: [58, 154], ha2: [56, 154] },
+    B: { hip: [82, 138], t: -34, kn: [114, 138], an: [124, 186], kn2: [112, 140], an2: [120, 186], el: [56, 126], ha: [78, 110], el2: [54, 126], ha2: [76, 110] },
+    props: BENCH_INC.concat([{ k: "db", at: "ha" }]), hl: ["ua"],
+    steps: ["Sit back on a 45-60° incline with DBs hanging straight down behind your torso.", "Keep your upper arms pointing at the floor.", "Curl the DBs up without letting the elbows come forward.", "Lower all the way to a full stretch."],
+    cues: ["Arms hang behind you", "Full stretch at the bottom"], mistake: "Bringing the elbows forward at the top, which kills the stretch." },
+  hammer: { name: "Cross-body hammer curl", v: "front", muscles: ["Brachialis", "Forearms", "Biceps"], equip: "Dumbbells",
+    A: { hip: [100, 104], haL: [80, 114], haR: [120, 114] },
+    B: { hip: [100, 104], haL: [80, 114], elR: [120, 86], haR: [98, 70] },
+    props: [{ k: "db", at: "haL" }, { k: "db", at: "haR" }], hl: ["uaR", "faR"],
+    steps: ["Hold DBs at your sides with palms facing in.", "Curl one DB up and across toward the opposite shoulder.", "Keep the palm facing in the whole time.", "Lower and alternate sides."],
+    cues: ["Thumb leads", "Elbow stays at your side"], mistake: "Rotating the palm up, which makes it a regular curl." },
+  cablecrunch: { name: "Cable crunch", v: "side", muscles: ["Abs"], equip: "High cable + rope",
+    A: { hip: [112, 140], t: 8, kn: [114, 182], an: [80, 182], ft: 270, kn2: [112, 182], an2: [78, 182], ft2: 270, el: [128, 102], ha: [122, 84], el2: [126, 104], ha2: [120, 86] },
+    B: { hip: [112, 142], t: 72, ht: 40, kn: [114, 182], an: [80, 182], ft: 270, kn2: [112, 182], an2: [78, 182], ft2: 270, el: [154, 150], ha: [160, 126], el2: [152, 150], ha2: [158, 126] },
+    props: [{ k: "post", x: 164, y1: 6, y2: 186 }, { k: "cable", from: [158, 12], to: "ha" }], hl: ["torsoL", "torsoU"],
+    steps: ["Kneel facing a high cable, holding the rope beside your head.", "Keep your hips still.", "Crunch down by curling your ribs toward your pelvis.", "Return slowly until the abs stretch."],
+    cues: ["Round the spine", "Hips stay put"], mistake: "Sitting back onto the heels and pulling with the arms." },
+  broadjump: { name: "Broad jump + lateral bound", v: "side", muscles: ["Glutes", "Quads", "Hamstrings"], equip: "Open floor",
+    A: { hip: [44, 140], t: 42, an: [52, 186], an2: [48, 186], ha: [24, 150], ha2: [22, 150] },
+    B: { hip: [146, 138], t: 30, an: [158, 186], an2: [154, 186], ha: [180, 104], ha2: [178, 104] },
+    props: [], hl: ["th", "th2"],
+    steps: ["Stand with feet hip-width, then dip and swing your arms back.", "Jump forward as far as you can, driving the arms forward.", "Stick the landing in a quarter squat and hold for a second.", "For bounds: leap side to side, landing on one leg."],
+    cues: ["Stick every landing", "Quality over distance"], mistake: "Landing with stiff legs or the knees caving in." },
+  trapbar: { name: "Trap bar deadlift", v: "side", muscles: ["Glutes", "Quads", "Hamstrings", "Back"], equip: "Trap (hex) bar",
+    A: { hip: [76, 136], t: 52, an: [94, 186], an2: [90, 186], ha: [110, 168], ha2: [108, 168] },
+    B: { hip: [92, 104], t: 0, ha: [96, 112], ha2: [92, 112] },
+    props: [{ k: "plate", at: "ha", r: 15 }], hl: ["th", "torsoL"],
+    steps: ["Step inside the bar and grab the handles at your sides.", "Hips down, chest up, back flat.", "Push the floor away until you're standing tall.", "Lower by pushing the hips back and bending the knees together."],
+    cues: ["Brace before you pull", "Push, don't yank"], mistake: "Rounding the lower back at the bottom." },
+  rdl: { name: "Romanian deadlift", v: "side", muscles: ["Hamstrings", "Glutes"], equip: "Barbell or DBs",
+    A: { hip: [92, 104], t: 0, ha: [97, 112], ha2: [93, 112] },
+    B: { hip: [78, 108], t: 72, an: [94, 186], an2: [90, 186], ha: [128, 150], ha2: [126, 150] },
+    props: [{ k: "plate", at: "ha", r: 13 }], hl: ["th", "th2"],
+    steps: ["Stand tall with the bar at your thighs, knees soft.", "Push your hips back, sliding the bar down your legs.", "Go until you feel a big hamstring stretch, usually mid-shin.", "Drive the hips forward to stand back up."],
+    cues: ["Hips back, not down", "Bar stays close"], mistake: "Bending the knees more and more until it's a squat." },
+  poliquin: { name: "Poliquin step-up", v: "side", muscles: ["Quads (VMO)"], equip: "Low step + slant board or plate under the heel",
+    from: "patrick", hl: ["th"],
+    steps: ["Stand side-on on a low step with the working heel elevated.", "Lower the free foot toward the floor, letting the working knee go far forward.", "Tap the floor lightly with the heel.", "Straighten the working leg to rise back up."],
+    cues: ["Slow down, quick up", "Knee over the toes"], mistake: "Pushing off the floor with the free foot." },
+  soleus: { name: "Seated soleus raise", v: "side", muscles: ["Soleus", "Achilles"], equip: "Bench + plate or DB on the knees",
+    A: { hip: [74, 120], t: 0, kn: [116, 118], an: [120, 168], ft: 100, kn2: [114, 120], an2: [118, 168], ft2: 100, ha: [114, 108], ha2: [112, 108] },
+    B: { hip: [74, 120], t: 0, kn: [116, 108], an: [120, 158], ft: 132, kn2: [114, 110], an2: [118, 158], ft2: 132, ha: [114, 98], ha2: [112, 98] },
+    props: [{ k: "rect", x: 44, y: 124, w: 56, h: 8 }, { k: "rect", x: 66, y: 132, w: 6, h: 54 }, { k: "rect", x: 112, y: 168, w: 34, h: 18 }, { k: "plate", at: "kn", off: [0, -8], r: 9 }], hl: ["sh", "sh2"],
+    steps: ["Sit with the balls of your feet on a plate or step, knees bent 90°.", "Rest a weight on your knees.", "Lower the heels for a full stretch.", "Push up onto your toes as high as you can, then lower slowly."],
+    cues: ["Pause at the top and bottom", "Knees stay bent"], mistake: "Bouncing quick reps instead of full, slow ones." },
+  jefferson: { name: "Jefferson curl", v: "side", muscles: ["Spine mobility", "Hamstrings"], equip: "Box + light DB or plate (25-45 lb)",
+    A: { hip: [92, 80], t: 0, an: [93, 162], an2: [89, 162], ha: [96, 88], ha2: [92, 88] },
+    B: { hip: [84, 82], t: 152, ht: 20, an: [93, 162], an2: [89, 162], ha: [110, 182], ha2: [108, 182] },
+    props: [{ k: "rect", x: 66, y: 162, w: 52, h: 24 }, { k: "db", at: "ha" }], hl: ["torsoU", "torsoL", "th"],
+    steps: ["Stand on a box holding a light weight, legs straight.", "Tuck your chin and roll down one vertebra at a time.", "Let the weight reach below the box for a full stretch.", "Roll back up slowly, head coming up last."],
+    cues: ["Light weight, slow tempo", "Segment by segment"], mistake: "Going heavy. This is mobility work, not a deadlift." },
+  dbpress: { name: "Seated DB shoulder press", v: "side", muscles: ["Front delts", "Side delts", "Triceps"], equip: "Dumbbells + upright bench",
+    A: { hip: [74, 134], t: 0, kn: [112, 136], an: [116, 186], kn2: [110, 138], an2: [112, 186], el: [70, 104], ha: [80, 80], el2: [68, 104], ha2: [78, 80] },
+    B: { hip: [74, 134], t: 0, kn: [112, 136], an: [116, 186], kn2: [110, 138], an2: [112, 186], ha: [78, 28], ha2: [76, 28] },
+    props: [{ k: "rect", x: 56, y: 50, w: 7, h: 90 }, { k: "rect", x: 56, y: 138, w: 46, h: 7 }, { k: "rect", x: 74, y: 145, w: 6, h: 41 }, { k: "db", at: "ha" }], hl: ["delt", "ua"],
+    steps: ["Sit tall with your back on the pad, DBs at shoulder height.", "Press them straight up until your arms are almost locked.", "Lower back down to about ear level.", "Keep your ribs down so the lower back doesn't arch off the pad."],
+    cues: ["Wrists over elbows", "Ribs down"], mistake: "Arching the back to turn it into an incline press." },
+  revpec: { name: "Reverse pec deck", v: "front", muscles: ["Rear delts", "Upper back"], equip: "Pec deck machine, facing the pad",
+    A: { hip: [100, 118], haL: [94, 74], haR: [106, 74], ebL: -1, ebR: 1, knL: [88, 150], anL: [88, 186], knR: [112, 150], anR: [112, 186] },
+    B: { hip: [100, 118], haL: [32, 76], haR: [168, 76], ebL: 1, ebR: -1, knL: [88, 150], anL: [88, 186], knR: [112, 150], anR: [112, 186] },
+    props: SEAT_FRONT.concat([{ k: "grip", at: "haL" }, { k: "grip", at: "haR" }]), hl: ["deltL", "deltR"],
+    steps: ["Sit facing the pad with the handles set at shoulder height.", "Grab the handles with arms straight out in front.", "Sweep your arms out and back in a wide arc.", "Return slowly until the hands nearly meet."],
+    cues: ["Think 'push out', not 'pull back'", "Don't squeeze the shoulder blades hard"], mistake: "Pinching the shoulder blades, which shifts the work to the mid-back." },
+  vup: { name: "Ab circuit (V-ups shown)", v: "side", muscles: ["Abs"], equip: "Floor, ab wheel, bar, plate",
+    A: { hip: [104, 180], t: -90, an: [184, 182], an2: [182, 182], ft: 0, ft2: 0, ha: [6, 178], ha2: [8, 178] },
+    B: { hip: [100, 180], t: -40, an: [154, 124], an2: [152, 126], ft: 40, ft2: 40, ha: [130, 112], ha2: [128, 114] },
+    props: [], hl: ["torsoL"],
+    steps: ["V-ups 15: lie flat, then raise arms and legs to meet in the middle.", "Ab wheel 10: roll out from your knees as far as you can control, then pull back.", "Hanging leg raise 10, then plate Russian twists 20 (10 per side).", "Rest 60 seconds, then do a second round."],
+    cues: ["Lower back stays down on V-ups", "Exhale on the way up"], mistake: "Rushing the circuit with sloppy reps; slow reps count, fast ones don't." }
+};
+// inherit poses
+Object.values(EX).forEach(e => {
+  if (e.from) { const s = EX[e.from]; e.A = s.A; e.B = s.B; e.v = s.v; e.props = (s.props || []).filter(p => !(e.noDb && (p.k === "db" || p.k === "plate"))); e.hl = e.hl || s.hl; }
+});
+EX.ohrope = Object.assign({}, EX.ohext, { name: "Overhead rope extension", equip: "Cable + rope, facing away" });
+
+/* ---------- optional photos (none bundled; animations are the default) ---------- */
+const PHOTOS = {};
+Object.keys(PHOTOS).forEach(k => { if (EX[k]) EX[k].photo = PHOTOS[k]; });
+
+/* ---------- plan ---------- */
+const KNEE = [["backwalk", "3 min"], ["tib", "1×25"], ["patrick", "15/leg"], ["atg", "6/leg"], ["couch", "30s/side"]];
+const SWAPS = {
+  S1: { t: "Express Upper", m: "35 min", l: ["DB bench 8-10 + chest-supported DB row 10 · 3 rounds", "Seated DB press 10 + pull-ups 2 short of failure · 3 rounds", "Cable lateral raise 15/side + Bayesian curl 12 + overhead triceps ext 12 · 3 rounds"] },
+  S2: { t: "Express Lower", m: "30 min", l: ["Box jumps 3×3 (skip if Achilles or ankle is sore)", "One main lift, 3×5 at last week's weight", "ATG split squat 2×8/leg + Nordic curl 2×5", "Tib raises 1×25 + backward walk 3 min"] },
+  S3: { t: "DBs Only", m: "35 min", l: ["DB press 4×10-12 + 1-arm row 4×10/side", "Bulgarian split squat 3×10/leg + DB RDL 3×10", "Lateral raise 4×15 + curl 3×12 + overhead ext 3×12", "100 V-ups, any way you break them up"] },
+  S4: { t: "No Equipment", m: "25 min", l: ["5 rounds: push-ups 15-20 · pull-ups 2 short · ATG split squat 8/leg · pike push-ups 10 · towel leg curls 8 · hollow hold 30s"] },
+  S5: { t: "Pump Only", m: "20 min", l: ["Lateral raise 4×20", "Push-ups 3× max minus 2", "Bayesian curl + rope pushdown 3×15", "Reverse pec deck or band pull-aparts 3×20"] },
+  S7: { t: "Run + Lift", m: "80 min", l: ["Run first", "5 min: water, shake if the run went over an hour, short knee warm-up", "Easy run: full session. Quality run: Express Upper or Express Lower instead"] }
+};
+// sessions (index = session id). rank: lower = more important when a week gets crushed
+const DAYS = [
+  { dow: "Mon", ln: "PRESS", name: "Press Conference", kind: "upper", rank: 1, mins: 60, run: "Rest day", order: "Lift only", swaps: ["S1", "S3", "S5"],
+    items: [
+      { x: "bench", p: "bench", tag: "main" },
+      { x: "incline", p: "incline" },
+      { ss: 1, x: "pecfly", s: 2, r: "12-15" },
+      { ss: 1, x: "latraise", s: 3, r: "15", u: "/side", tag: "pri" },
+      { ss: 2, x: "ohext", s: 2, r: "12", tag: "pri" },
+      { ss: 2, x: "pushdown", s: 2, r: "15" },
+      { x: "legraise", s: 3, r: "10", bw: 1 }
+    ] },
+  { dow: "Tue", ln: "KNEES", name: "Knee Deep", kind: "lower", rank: 4, mins: 60, run: "Quality run", order: "Run first", swaps: ["S2", "S7"],
+    items: [
+      { x: "boxjump", p: "plyo", s: 4, r: "3", bw: 1 },
+      { x: "squat", p: "squat", tag: "main" },
+      { x: "atg", p: "atg", u: "/leg", bw: 1 },
+      { x: "nordic", p: "nordic", bw: 1 },
+      { ss: 1, x: "slant", p: "slant" },
+      { ss: 1, x: "calfraise", s: 2, r: "12" },
+      { ss: 3, x: "latraise", s: 2, r: "15", u: "/side", tag: "pri" },
+      { ss: 3, x: "bayesian", s: 2, r: "15", tag: "pri" }
+    ] },
+  { dow: "Wed", ln: "WINGS", name: "Wingspan", kind: "upper", rank: 2, mins: 60, run: "Easy run", order: "Either order", swaps: ["S1", "S3", "S5"],
+    items: [
+      { x: "pullup", p: "pullup", tag: "main", bw: 1 },
+      { x: "csrow", p: "row", tag: "pri" },
+      { x: "pulldown", s: 3, r: "12", tag: "pri" },
+      { x: "onearmpd", s: 2, r: "12", u: "/side", tag: "pri" },
+      { x: "facepull", s: 2, r: "15" },
+      { ss: 1, x: "ezcurl", s: 2, r: "10", tag: "pri" },
+      { ss: 1, x: "inclinecurl", s: 2, r: "12", tag: "pri" },
+      { x: "cablecrunch", s: 2, r: "15" }
+    ] },
+  { dow: "Thu", ln: "HINGE", name: "Hinge Benefits", kind: "lower", rank: 5, mins: 50, run: "Easy / med-long", order: "Run first", swaps: ["S2", "S4", "S7"],
+    items: [
+      { x: "broadjump", p: "plyo", s: 3, r: "3", bw: 1 },
+      { x: "trapbar", p: "trapbar", tag: "main" },
+      { x: "rdl", s: 2, r: "8" },
+      { ss: 1, x: "poliquin", s: 2, r: "15", u: "/leg", bw: 1 },
+      { ss: 1, x: "soleus", p: "soleus" },
+      { x: "jefferson", p: "jefferson" },
+      { x: "tib", p: "tib" },
+      { ss: 3, x: "latraise", s: 2, r: "15", u: "/side", tag: "pri" },
+      { ss: 3, x: "ohext", s: 2, r: "15", tag: "pri" }
+    ] },
+  { dow: "Fri", ln: "BOULDER", name: "Boulder Dash", kind: "upper", rank: 3, mins: 50, run: "Easy or off", order: "Lift first", swaps: ["S1", "S3", "S5"],
+    items: [
+      { x: "dbpress", p: "dbpress", tag: "main" },
+      { x: "latraise", s: 3, r: "15", u: "/side", tag: "pri" },
+      { x: "yraise", s: 2, r: "15", tag: "pri" },
+      { x: "revpec", s: 2, r: "15" },
+      { ss: 1, x: "bayesian", s: 2, r: "12", tag: "pri" },
+      { ss: 1, x: "ohrope", s: 2, r: "12", tag: "pri" },
+      { ss: 2, x: "hammer", s: 2, r: "10", tag: "pri" },
+      { ss: 2, x: "closebench", s: 2, r: "10", tag: "pri" },
+      { x: "vup", s: 2, r: "1 round", bw: 1, fixed: 1 }
+    ] },
+  { dow: "Sat", ln: "PUMP", name: "Pump Fiction", kind: "upper", rank: 6, mins: 40, run: "Easy, off or F45", order: "Optional", optional: true, swaps: ["S5"],
+    items: [
+      { ss: 1, x: "machinepress", s: 2, r: "12" },
+      { ss: 1, x: "rowmachine", s: 2, r: "12", tag: "pri" },
+      { ss: 2, x: "revpec", s: 2, r: "15" },
+      { ss: 2, x: "closepulldown", s: 2, r: "15", tag: "pri" },
+      { x: "latdb", s: 2, r: "10+10+10", tag: "pri", fixed: 1 }
+    ] },
+  { dow: "Sun", ln: "LONG", name: "Long Haul", kind: "run", rank: 0, items: [] }
+];
+const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+const PHASES = {
+  re: { name: "Rust Off", rule: "Stop 3 reps short on everything", rir: "3 in the tank" },
+  build: { name: "Ignition", rule: "Main lifts 2 short · last accessory set to failure", rir: "2 in the tank" },
+  cut: { name: "Pit Stop", rule: "Deload · same weights, fewer sets, no jumps", rir: "Deload" },
+  heavy: { name: "Project Get Big", rule: "Add weight weekly · accessories to failure + partials", rir: "1-2 in the tank" },
+  peak: { name: "Han Swolo Returns", rule: "Heaviest week of the block", rir: "1 in the tank" },
+  test: { name: "Moment of Truth", rule: "Work up to a 3-rep max, then pump work · retake photos", rir: "Test day" }
+};
+const phaseOf = w => w <= 2 ? "re" : w === 3 ? "build" : (w === 4 || w === 8) ? "cut" : w <= 7 ? "heavy" : w === 9 ? "peak" : "test";
+const phaseName = w => (w === 8 ? "Pit Stop II" : PHASES[phaseOf(w)].name);
+const MAIN = {
+  bench:   { re: [3, "8"], build: [4, "6-8"], heavy: [4, "5-6"], peak: [5, "3-4"], test: [3, "to 3RM"] },
+  incline: { re: [3, "10"], build: [3, "8-10"], heavy: [4, "6-8"], peak: [4, "6"], test: [1, "AMRAP"] },
+  squat:   { re: [3, "6"], build: [4, "5"], heavy: [4, "4-5"], peak: [4, "3"], test: [3, "to 3RM"] },
+  pullup:  { re: [3, "max-2"], build: [4, "6"], heavy: [4, "5"], peak: [5, "3"], test: [3, "to 3RM"] },
+  row:     { re: [3, "10"], build: [4, "8"], heavy: [4, "6-8"], peak: [4, "6"], test: [3, "8"] },
+  trapbar: { re: [3, "5"], build: [3, "5"], heavy: [3, "4-5"], peak: [3, "3"], test: null },
+  dbpress: { re: [3, "10"], build: [4, "8-10"], heavy: [4, "6-8"], peak: [4, "6"], test: [1, "AMRAP"] }
+};
+const KOT = {
+  atg: { e: [2, "8"], m: [3, "6"], l: [3, "5"] }, nordic: { e: [3, "3"], m: [3, "5"], l: [3, "5"] },
+  slant: { e: [2, "15"], m: [2, "12"], l: [2, "10"] }, tib: { e: [2, "20"], m: [2, "15"], l: [2, "15"] },
+  soleus: { e: [2, "20"], m: [3, "15"], l: [3, "12"] }, jefferson: { e: [2, "8"], m: [2, "8"], l: [2, "8"] }
+};
+const JEFF_LB = { e: "25 lb", m: "35 lb", l: "45 lb" };
+function dose(it, w) {
+  const ph = phaseOf(w);
+  if (MAIN[it.p]) {
+    if (ph === "cut") return { s: 2, r: MAIN[it.p].build[1], note: "deload" };
+    const v = MAIN[it.p][ph]; if (!v) return null;
+    const note = it.p === "pullup" && ph === "build" ? "+10 lb" : it.p === "pullup" && ph !== "re" ? "add weight" : "";
+    return { s: v[0], r: v[1], note };
+  }
+  if (KOT[it.p]) {
+    const band = w <= 3 ? "e" : w <= 7 ? "m" : "l";
+    if (ph === "cut") return { s: 2, r: KOT[it.p].e[1], note: "deload" };
+    const v = KOT[it.p][band];
+    return { s: v[0], r: v[1], note: it.p === "jefferson" ? JEFF_LB[band] : "" };
+  }
+  if (it.p === "plyo") { if (ph === "cut" || ph === "test") return null; return { s: ph === "heavy" || ph === "peak" ? it.s + 1 : it.s, r: it.r, note: "if pain-free" }; }
+  if (it.fixed) return { s: ph === "cut" || ph === "test" ? 1 : it.s, r: it.r, note: "" };
+  const s = { re: it.s, build: 3, cut: 2, heavy: it.tag === "pri" ? 4 : 3, peak: 3, test: 2 }[ph];
+  return { s, r: it.r, note: ph === "heavy" ? "last set: fail + partials" : ph === "build" ? "last set to failure" : "" };
+}
+const FLAGS = { "2-3": "Thanksgiving", "6-4": "Christmas", "7-4": "New Year's Day" };
+const START = new Date(2026, 10, 16);
+const dayDate = (w, d) => new Date(START.getFullYear(), START.getMonth(), START.getDate() + (w - 1) * 7 + d);
+const fmt = dt => dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const iso = dt => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+
+/* ---------- storage: local copy always, synced to your private db space when available ---------- */
+let STORE = {};
+try { STORE = JSON.parse(localStorage.getItem("hb4") || "{}") || {}; } catch (e) {}
+let DB = null, UID = null, ACTS = {}, SYNC = null;
+const dirty = new Set();
+function persistLocal() { try { localStorage.setItem("hb4", JSON.stringify(STORE)); } catch (e) {} }
+const docName = k => k.split("|")[0]; // group keys into docs: "w3s2|..." -> doc w3s2
+function sget(k) { const g = STORE[docName(k)]; return g ? g[k] : undefined; }
+function sset(k, v) {
+  const d = docName(k); STORE[d] = STORE[d] || {};
+  if (v == null) delete STORE[d][k]; else STORE[d][k] = v;
+  persistLocal(); dirty.add(d); flush();
+}
+let flushing = false;
+async function flush() {
+  if (!DB || !UID || flushing) return;
+  flushing = true;
+  try {
+    while (dirty.size) {
+      const d = dirty.values().next().value; dirty.delete(d);
+      await DB.collection("data/users/" + UID).doc(d).set({ v: STORE[d] || {} });
+    }
+  } catch (e) { /* stays local */ }
+  flushing = false;
+}
+const setKey = (w, s, i, n) => `w${w}s${s}|${i}-${n}`;
+const warmKey = (w, s, i) => `w${w}s${s}|warm-${i}`;
+const schedKey = w => `sched${w}|slots`;
+
+/* ---------- schedule: which session sits on which day ---------- */
+function slots(w) { const v = sget(schedKey(w)); return Array.isArray(v) && v.length === 7 ? v.slice() : [0, 1, 2, 3, 4, 5, 6]; }
+function saveSlots(w, arr) { const def = arr.every((x, i) => x === i); sset(schedKey(w), def ? null : arr); }
+// value: session index, or -1 = rest (moved), -2 = skipped
+function pushToTomorrow(w, d) {
+  const a = slots(w); const lastLift = 5;
+  if (d >= lastLift) { a[d] = -1; return saveSlots(w, a), "Pushed past Saturday, so it's dropped this week."; }
+  const queue = a.slice(d, lastLift + 1).filter(x => x >= 0);
+  let dropped = null;
+  if (queue.length > lastLift - d) { // too many sessions for the days left: drop the least important
+    let wi = 0; queue.forEach((x, i) => { if (DAYS[x].rank > DAYS[queue[wi]].rank) wi = i; });
+    dropped = queue.splice(wi, 1)[0];
+  }
+  a[d] = -1;
+  for (let k = d + 1; k <= lastLift; k++) a[k] = queue.length ? queue.shift() : -1;
+  saveSlots(w, a);
+  return dropped != null ? `${DAYS[dropped].name} dropped this week to make room.` : "Everything after today slid one day.";
+}
+function swapDays(w, d1, d2) { const a = slots(w); [a[d1], a[d2]] = [a[d2], a[d1]]; saveSlots(w, a); }
+function skipDay(w, d) { const a = slots(w); a[d] = -2; saveSlots(w, a); }
+function warnings(w) {
+  const a = slots(w), out = [];
+  const at = s => a.indexOf(s);
+  if (at(1) === 5) out.push("Knee Deep lands the day before the long run. Swap it earlier if you can.");
+  const legs = [at(1), at(3)].filter(x => x >= 0).sort();
+  if (legs.length === 2 && legs[1] - legs[0] === 1) out.push("Two leg days back to back. Fine if the run between is easy.");
+  if (at(1) >= 0 && at(1) === at(0) + 0 && false) out.push("");
+  return out;
+}
+
+/* ---------- state ---------- */
+let week = 1, dayIdx = 0, swapOpen = null, view = "plan", exId = null, actionMode = null, toast = "";
+(function pickToday() { const diff = Math.floor((new Date() - START) / 86400000); if (diff >= 0 && diff < 70) { week = Math.floor(diff / 7) + 1; dayIdx = diff % 7; } })();
+function progress(w, s) {
+  let n = 0, t = 0; if (s < 0) return [0, 0];
+  DAYS[s].items.forEach((it, i) => { const ds = dose(it, w); if (!ds) return; for (let k = 0; k < ds.s; k++) { t++; const v = sget(setKey(w, s, i, k)); if (v && v.d) n++; } });
+  return [n, t];
+}
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const thumbHTML = id => { const e = EX[id]; return figure(solve(Object.assign({ v: e.v }, e.B)), Object.assign({ _t: e.B.t }, e), { thumb: true }); };
+const CHECK = `<svg viewBox="0 0 24 24" fill="none" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>`;
+const RUNICON = `<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="currentColor"/></svg>`;
+
+/* ---------- plan view ---------- */
+function renderPlan() {
+  const app = document.getElementById("app");
+  const a = slots(week), sess = a[dayIdx], d = sess >= 0 ? DAYS[sess] : null, P = PHASES[phaseOf(week)];
+  const date = dayDate(week, dayIdx), acts = ACTS[iso(date)] || [];
+  let h = `<div class="brand"><span class="mark">HYBRID <b>BUILD</b></span><span class="bib"><i>${String(week).padStart(2, "0")}</i>Week ${week} of 10</span></div>
+    <div class="weeks" role="group" aria-label="Week">${Array.from({ length: 10 }, (_, k) => { const w = k + 1, c = phaseOf(w); return `<button class="wk ${c === "cut" ? "cut" : c === "test" ? "test" : ""}" aria-pressed="${w === week}" aria-label="Week ${w}, ${phaseName(w)}" data-w="${w}"><span>${String(w).padStart(2, "0")}</span><em></em></button>`; }).join("")}</div>
+    <div class="phase"><b>${phaseName(week)}</b><span>${P.rule}</span></div>
+    <nav class="lanes" role="tablist" aria-label="Days">${a.map((s, i) => {
+      const [n, t] = progress(week, s); const ran = (ACTS[iso(dayDate(week, i))] || []).length;
+      const tag = s >= 0 ? DAYS[s].ln : s === -2 ? "SKIPPED" : "REST";
+      return `<button class="lane ${s === 6 ? "run" : ""} ${s < 0 ? "off" : ""}" role="tab" aria-selected="${i === dayIdx}" data-d="${i}"><span class="dow">${DOW[i]}</span><span class="ln">${dayDate(week, i).getDate()}</span><span class="tag">${tag}</span>${ran ? `<span class="ran">${RUNICON}</span>` : ""}<span class="fill"><i style="width:${t ? n / t * 100 : 0}%"></i></span></button>`;
+    }).join("")}</nav>`;
+  warnings(week).forEach(x => h += `<div class="warnline">${x}</div>`);
+  if (toast) { h += `<div class="toast">${toast}</div>`; toast = ""; }
+
+  const flag = FLAGS[`${week}-${dayIdx}`];
+  const stravaCard = acts.length ? `<div class="strava"><div class="lbl">From Strava<em>${SYNC ? "synced " + SYNC : ""}</em></div>${acts.map(x => `<div class="act"><span class="aname">${esc(x.name || x.type)}</span><span class="astat">${[x.distance_mi ? x.distance_mi + " mi" : "", x.moving_time || "", x.pace ? x.pace + "/mi" : "", x.avg_hr ? x.avg_hr + " bpm" : ""].filter(Boolean).map(esc).join(" · ")}</span></div>`).join("")}</div>` : "";
+
+  if (!d) {
+    const skipped = sess === -2;
+    h += `<section class="hero"><h2 class="dim">${skipped ? "Skipped" : "Rest Day"}</h2><div class="meta"><span>${fmt(date)}</span>${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>
+      <div class="longrun">${skipped ? "You skipped today. If you've got 20 minutes, Pump Only keeps the priority muscles moving." : "Nothing scheduled after the shuffle. Easy run or full rest."}</div>${stravaCard}
+      ${skipped ? `<div class="chips"><button data-sw="S5" aria-pressed="${swapOpen === "S5"}"><b>20 min</b>Pump Only</button></div>${swapOpen ? `<div class="swapbox"><ol>${SWAPS[swapOpen].l.map(x => `<li>${x}</li>`).join("")}</ol></div>` : ""}` : ""}
+      <button class="textbtn" id="resetweek">Undo all changes this week</button>`;
+    app.innerHTML = h; bindPlan(); return;
+  }
+  if (d.kind === "run") {
+    h += `<section class="hero"><h2 class="run">${d.name}</h2><div class="meta"><span>${fmt(date)}</span><span>Long run</span><span>No lifting</span></div></section>${stravaCard || `<div class="longrun">Long run day. It shows up here once Strava syncs tonight.</div>`}`;
+    app.innerHTML = h; bindPlan(); return;
+  }
+  const [n, t] = progress(week, sess);
+  const moved = sess !== dayIdx ? `<span class="hot">Moved from ${DOW[sess]}</span>` : "";
+  h += `<section class="hero"><h2>${d.name}</h2><div class="meta"><span>${fmt(date)}</span><span class="hot">${P.rir}</span>${moved}<span>${d.mins} min</span><span>${d.run}</span>${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>`;
+
+  // day actions
+  h += `<div class="actions"><button data-act="push" aria-pressed="${actionMode === "push"}">Push to tomorrow</button><button data-act="swap" aria-pressed="${actionMode === "swap"}">Swap day</button><button data-act="skip" aria-pressed="${actionMode === "skip"}">Skip</button></div>`;
+  if (actionMode === "swap") h += `<div class="sheet"><div class="lbl">Swap with</div><div class="chips">${a.map((s, i) => i === dayIdx || i === 6 ? "" : `<button data-swapwith="${i}"><b>${DOW[i]}</b>${s >= 0 ? DAYS[s].name : "Rest"}</button>`).join("")}</div></div>`;
+  if (actionMode === "push") h += `<div class="sheet"><div class="note">${dayIdx < 5 ? "Today becomes rest and everything after slides a day. If the week runs out of room, the least important session (Pump Fiction, then Hinge Benefits) drops." : "Saturday's session has nowhere to go, so it drops this week."}</div><div class="chips"><button data-confirm="push"><b>OK</b>Push it</button></div></div>`;
+  if (actionMode === "skip") h += `<div class="sheet"><div class="note">${d.rank <= 2 ? "This is a priority session. Pushing it usually beats skipping it." : "Skipping keeps the rest of the week where it is."}</div><div class="chips"><button data-confirm="skip"><b>OK</b>Skip it</button>${d.rank <= 2 ? `<button data-confirm="push"><b>Better</b>Push instead</button>` : ""}</div></div>`;
+  h += stravaCard;
+
+  h += `<div class="lbl">Knee Ready<em>10 min</em></div><div class="warm">${KNEE.map(([id, dz], i) => { const on = !!sget(warmKey(week, sess, i)); return `<div class="wcard${on ? " on" : ""}"><button class="thumb" data-ex="${id}" aria-label="How to do ${esc(EX[id].name)}">${thumbHTML(id)}</button><div class="wb"><span><span class="wn">${EX[id].name}</span><br><span class="wd">${dz}</span></span><button class="chk" aria-label="${esc(EX[id].name)} done" aria-pressed="${on}" data-warm="${i}">${CHECK}</button></div></div>`; }).join("")}</div>`;
+  h += `<div class="lbl">Workout<em>${n}/${t} sets</em></div><div class="list">`;
+  let i = 0;
+  while (i < d.items.length) {
+    const it = d.items[i];
+    if (it.ss) {
+      const g0 = it.ss; let g = "", cnt = 0;
+      while (i < d.items.length && d.items[i].ss === g0) { const c = exCard(d.items[i], i, sess); if (c) { g += c; cnt++; } i++; }
+      if (cnt) h += `<div class="ss"><div class="ss-tag">${g0 === 3 ? "Arm finisher" : "Superset"} · no rest between</div>${g}</div>`;
+    } else { const c = exCard(it, i, sess); if (c) h += c; i++; }
+  }
+  h += `</div><div class="lbl">Short on time</div><div class="chips">${d.swaps.map(k => `<button data-sw="${k}" aria-pressed="${swapOpen === k}"><b>${SWAPS[k].m}</b>${SWAPS[k].t}</button>`).join("")}</div>`;
+  if (swapOpen) h += `<div class="swapbox"><ol>${SWAPS[swapOpen].l.map(x => `<li>${x}</li>`).join("")}</ol></div>`;
+  h += `<div class="foot"><button class="textbtn" id="clearday">Clear this session's log</button><button class="textbtn" id="resetweek">Undo schedule changes</button></div>`;
+  app.innerHTML = h; bindPlan();
+}
+function exCard(it, i, sess) {
+  const ds = dose(it, week); if (!ds) return "";
+  const e = EX[it.x];
+  let all = true, rows = "";
+  for (let s = 0; s < ds.s; s++) {
+    const v = sget(setKey(week, sess, i, s)) || {};
+    const prev = week > 1 ? (sget(setKey(week - 1, sess, i, s)) || {}) : {};
+    if (!v.d) all = false;
+    rows += `<div class="set${v.d ? " is-done" : ""}"><span class="n">${s + 1}</span>
+      <label class="field"><input inputmode="decimal" aria-label="Set ${s + 1} weight" data-i="${i}" data-s="${s}" data-f="w" value="${esc(v.w)}" placeholder="${esc(prev.w || (it.bw ? "BW" : "—"))}"><span>lb</span></label>
+      <label class="field"><input inputmode="numeric" aria-label="Set ${s + 1} reps" data-i="${i}" data-s="${s}" data-f="r" value="${esc(v.r)}" placeholder="${esc(ds.r)}"><span>reps</span></label>
+      <button class="chk" aria-label="Set ${s + 1} done" aria-pressed="${!!v.d}" data-i="${i}" data-s="${s}" data-done="1">${CHECK}</button></div>`;
+  }
+  const sub = [it.tag === "main" ? `<span class="p">Main lift</span>` : it.tag === "pri" ? `<span class="p">Priority</span>` : "", ds.note].filter(Boolean).join(" · ");
+  return `<article class="ex${all ? " done" : ""}"><button class="exhead" data-ex="${it.x}" aria-label="How to do ${esc(e.name)}"><span class="thumb">${thumbHTML(it.x)}</span><span><span class="exname">${e.name}</span>${sub ? `<span class="exsub">${sub}</span>` : ""}</span><span class="dose">${ds.s}×${ds.r}<small>${it.u ? it.u.replace("/", "per ") : "sets × reps"}</small></span></button><div class="sets">${rows}</div></article>`;
+}
+function bindPlan() {
+  const app = document.getElementById("app");
+  const sess = slots(week)[dayIdx];
+  const on = (sel, fn) => app.querySelectorAll(sel).forEach(b => b.onclick = () => fn(b));
+  on("[data-w]", b => { week = +b.dataset.w; swapOpen = null; actionMode = null; renderPlan(); });
+  on("[data-d]", b => { dayIdx = +b.dataset.d; swapOpen = null; actionMode = null; renderPlan(); });
+  on("[data-sw]", b => { swapOpen = swapOpen === b.dataset.sw ? null : b.dataset.sw; keep(renderPlan); });
+  on("[data-ex]", b => openEx(b.dataset.ex));
+  on("[data-act]", b => { actionMode = actionMode === b.dataset.act ? null : b.dataset.act; keep(renderPlan); });
+  on("[data-confirm]", b => { if (b.dataset.confirm === "push") toast = pushToTomorrow(week, dayIdx); else { skipDay(week, dayIdx); toast = "Skipped. The rest of the week stays put."; } actionMode = null; renderPlan(); });
+  on("[data-swapwith]", b => { const to = +b.dataset.swapwith; swapDays(week, dayIdx, to); toast = `Swapped with ${DOW[to]}.`; actionMode = null; renderPlan(); });
+  on("[data-warm]", b => { const k = warmKey(week, sess, +b.dataset.warm); sset(k, sget(k) ? null : 1); keep(renderPlan); });
+  on("[data-done]", b => {
+    const i = +b.dataset.i, s = +b.dataset.s, k = setKey(week, sess, i, s), v = Object.assign({}, sget(k) || {});
+    if (!v.d) { if (!v.r) v.r = dose(DAYS[sess].items[i], week).r; v.d = 1; } else v.d = 0;
+    sset(k, v); keep(renderPlan);
+  });
+  app.querySelectorAll("input[data-f]").forEach(inp => inp.onchange = () => {
+    const i = +inp.dataset.i, s = +inp.dataset.s, f = inp.dataset.f, k = setKey(week, sess, i, s), v = Object.assign({}, sget(k) || {});
+    v[f] = inp.value.trim(); sset(k, v);
+    if (f === "w" && v.w) { const ds = dose(DAYS[sess].items[i], week); for (let t = s + 1; t < ds.s; t++) { const kk = setKey(week, sess, i, t), vv = Object.assign({}, sget(kk) || {}); if (!vv.w) { vv.w = v.w; sset(kk, vv); const el = app.querySelector(`input[data-i="${i}"][data-s="${t}"][data-f="w"]`); if (el) el.value = v.w; } } }
+  });
+  const c = document.getElementById("clearday");
+  if (c) c.onclick = () => { const g = `w${week}s${sess}`; STORE[g] = {}; persistLocal(); dirty.add(g); flush(); renderPlan(); };
+  const r = document.getElementById("resetweek");
+  if (r) r.onclick = () => { sset(schedKey(week), null); toast = "Week reset to the original plan."; renderPlan(); };
+}
+const keep = fn => { const y = window.scrollY; fn(); window.scrollTo(0, y); };
+
+/* ---------- exercise view ---------- */
+let raf = null, playing = true, t0 = 0, tPaused = 0, planScroll = 0, mode = "photo";
+const CLIP = 10000, REP = 2500;
+const ease = x => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+function phaseK(ms) { const p = ms % REP; if (p < 1000) return ease(p / 1000); if (p < 1300) return 1; if (p < 2300) return 1 - ease((p - 1300) / 1000); return 0; }
+function openEx(id) { planScroll = window.scrollY; exId = id; view = "ex"; mode = "diagram"; renderEx(); window.scrollTo(0, 0); }
+function closeEx() { cancelAnimationFrame(raf); view = "plan"; renderPlan(); window.scrollTo(0, planScroll); }
+const PLAY = `<svg viewBox="0 0 14 14"><path d="M3 1.5v11l9-5.5z"/></svg>`, PAUSE = `<svg viewBox="0 0 14 14"><rect x="2.5" y="1.5" width="3.2" height="11" rx="1"/><rect x="8.3" y="1.5" width="3.2" height="11" rx="1"/></svg>`;
+function renderEx() {
+  const e = EX[exId], s = slots(week)[dayIdx];
+  const JA = solve(Object.assign({ v: e.v }, e.A)), JB = solve(Object.assign({ v: e.v }, e.B));
+  const ex = Object.assign({ _t: e.A.t }, e);
+  const photo = e.photo && mode === "photo";
+  const stage = photo ? `<div class="pstage"><img src="img/${e.photo}/0.jpg" alt="${esc(e.name)} start position"><img id="p1" src="img/${e.photo}/1.jpg" alt="${esc(e.name)} finish position"></div>` : `<div id="stage">${figure(JA, ex)}</div>`;
+  const stills = photo
+    ? `<figure class="still"><img src="img/${e.photo}/0.jpg" alt="Start"><figcaption><b>01</b>Start</figcaption></figure><figure class="still"><img src="img/${e.photo}/1.jpg" alt="Finish"><figcaption><b>02</b>Finish</figcaption></figure>`
+    : `<figure class="still">${figure(JA, ex, { label: "start" })}<figcaption><b>01</b>Start</figcaption></figure><figure class="still">${figure(JB, Object.assign({}, ex, { _t: e.B.t }), { label: "finish" })}<figcaption><b>02</b>Finish</figcaption></figure>`;
+  document.getElementById("app").innerHTML = `
+    <button class="back" id="back"><b>‹</b> ${s >= 0 ? DAYS[s].name : "Back"}</button>
+    <div class="dtitle"><h2>${e.name}</h2><div class="mus">${e.muscles.map((m, i) => `<span class="${i === 0 ? "hl" : ""}">${m}</span>`).join("")}</div></div>
+    ${e.photo ? `<div class="modes"><button data-mode="diagram" aria-pressed="${mode === "diagram"}">Animation</button><button data-mode="photo" aria-pressed="${mode === "photo"}">Real photo</button></div>` : ""}
+    <div class="player">${stage}<div class="pbar"><button class="pbtn" id="pp" aria-label="Pause">${PAUSE}</button><div class="track"><i id="prog"></i></div><span class="time" id="tm">0:00 / 0:10</span></div></div>
+    <div class="stills">${stills}</div>
+    <section class="howto"><div class="lbl">Muscles worked</div><div class="bmap">${bodyMap(e.muscles)}</div></section>
+    <section class="howto"><div class="lbl">How to</div><ol>${e.steps.map(x => `<li>${x}</li>`).join("")}</ol></section>
+    <section class="howto"><div class="lbl">Cues</div><ul>${e.cues.map(x => `<li>${x}</li>`).join("")}</ul></section>
+    <section class="howto warn"><div class="lbl">Don't</div><div style="font-size:14.5px">${e.mistake}</div></section>
+    <div class="equip">Equipment: ${e.equip}${e.photo ? ` · Photos: <a href="https://github.com/yuhonas/free-exercise-db">Free Exercise DB</a> (public domain)` : ""}</div>`;
+  document.getElementById("back").onclick = closeEx;
+  document.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { mode = b.dataset.mode; cancelAnimationFrame(raf); renderEx(); });
+  const st = document.getElementById("stage"), p1 = document.getElementById("p1"), prog = document.getElementById("prog"), tm = document.getElementById("tm"), pp = document.getElementById("pp");
+  playing = !(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches); tPaused = 0; t0 = performance.now();
+  const setBtn = () => { pp.innerHTML = playing ? PAUSE : PLAY; pp.setAttribute("aria-label", playing ? "Pause" : "Play"); };
+  setBtn();
+  const frame = now => {
+    if (view !== "ex") return;
+    const ms = playing ? (now - t0) % CLIP : tPaused;
+    if (playing) tPaused = ms;
+    const k = phaseK(ms);
+    if (p1) p1.style.opacity = k; else if (st) st.innerHTML = figure(lerpJ(JA, JB, k), ex);
+    prog.style.width = (ms / CLIP * 100) + "%";
+    tm.textContent = `0:${String(Math.floor(ms / 1000)).padStart(2, "0")} / 0:10`;
+    raf = requestAnimationFrame(frame);
+  };
+  pp.onclick = () => { playing = !playing; if (playing) t0 = performance.now() - tPaused; setBtn(); };
+  cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
+}
+
+/* ---------- connect: synced logs + Strava feed ---------- */
+async function connect() {
+  if (!window.claude || !window.claude.use) return;
+  try {
+    const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
+    if (!db) return;
+    DB = db;
+    const uid = user ? await user.id() : null;
+    const safeRender = () => { if (view === "plan" && !(document.activeElement && document.activeElement.tagName === "INPUT")) keep(renderPlan); };
+    db.collection("strava").orderBy("date", "desc").limit(400).onSnapshot(snap => {
+      const m = {}; snap.docs.forEach(doc => { const x = doc.data(); if (x && x.date) (m[x.date] = m[x.date] || []).push(x); });
+      ACTS = m; safeRender();
+    }, () => {});
+    db.doc("meta/sync").onSnapshot(s => { const x = s.exists ? s.data() : null; SYNC = x && x.at ? new Date(x.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : null; safeRender(); }, () => {});
+    if (uid) {
+      UID = uid;
+      db.collection("data/users/" + uid).onSnapshot(snap => {
+        snap.docs.forEach(doc => { if (!dirty.has(doc.id)) { const x = doc.data(); if (x && x.v) STORE[doc.id] = Object.assign({}, x.v); } });
+        persistLocal(); safeRender();
+        Object.keys(STORE).forEach(k => { if (!snap.docs.some(d => d.id === k)) dirty.add(k); }); flush();
+      }, () => {});
+    }
+  } catch (e) { /* offline: local copy keeps working */ }
+}
+/* ---------- pose check grid (dev only) ---------- */
+if (location.hash === "#posegrid") {
+  document.getElementById("app").style.maxWidth = "100%";
+  document.getElementById("app").innerHTML = `<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px">${Object.keys(EX).map(id => { const e = EX[id]; return `<div><div style="font-size:11px">${id}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:2px">${figure(solve(Object.assign({ v: e.v }, e.A)), Object.assign({ _t: e.A.t }, e))}${figure(solve(Object.assign({ v: e.v }, e.B)), Object.assign({ _t: e.B.t }, e))}</div></div>`; }).join("")}</div>`;
+} else { renderPlan(); connect(); }
+</script>
+</body>
+</html>
