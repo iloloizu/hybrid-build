@@ -50,7 +50,7 @@ ${hint ? `The person says (a hint about the program only): ${hint.slice(0, 300)}
 Reply with ONLY one JSON object:
 {"name": string, "by": string (coach or source, "" if unknown), "blurb": one sentence, "note": one sentence about anything assumed, "weeks": number,
  "phases": [{"from": firstWeek, "to": lastWeek, "name": string, "rule": short intensity rule or "",
-   "days": [7 entries Monday→Sunday, each null for rest or {"name": short session name or "", "exercises": [lines]}]}]}
+   "days": [7 entries Monday→Sunday, each null for rest or {"name": session name as written or "", "type": one of Push | Pull | Upper body | Lower body | Full body | Accessories | Plyometrics | Cardio | Core (judge by the main lift, then where most sets go), "exercises": [lines]}]}]}
 Each exercise line is: Name | ref | muscles | doses | flags
 - Name: as written in the program (keep coach notes out of it).
 - ref: "=<id>" if it is the same exercise as a library id below, else "~<id>" of the closest-looking library exercise.

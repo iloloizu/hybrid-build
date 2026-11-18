@@ -498,3 +498,4 @@ body:has(#timer.on) .wrap { padding-bottom: calc(var(--tabh) + 100px + env(safe-
 .ev.moderate { color: var(--ink); }
 .ev.limited { color: var(--accent); }
 .evnote { font-size: 13px; color: var(--muted); }
+.typepill { color: var(--bg) !important; background: var(--ink) !important; border-color: var(--ink) !important; }

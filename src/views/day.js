@@ -67,7 +67,7 @@ export function renderDay(w, d, isTodayTab) {
     app.innerHTML = h; bindDay(sess); keepAwake(false); return;
   }
   const moved = sess !== d ? `<span class="hot">Moved from ${dowName(sess)}</span>` : "";
-  h += `<section class="hero"><h2>${esc(s.name)}</h2><div class="meta">${hybrid ? `<span class="hot">${P.rir}</span>` : ""}${moved}${hybrid ? `<span>${s.mins} min</span><span>${s.run}</span>` : metaPills(s)}${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>`;
+  h += `<section class="hero"><h2>${esc(s.name)}</h2><div class="meta">${hybrid ? `<span class="hot">${P.rir}</span>` : ""}${moved}${hybrid ? `<span class="typepill">${esc(sessionMeta(s).focus)}</span><span>${s.mins} min</span><span>${s.run}</span>` : metaPills(s)}${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>`;
   if (!(n === tot && tot)) h += `<button class="cantbtn" id="cant">Can't train today?</button>`;
   h += strava;
   if (hybrid) {
@@ -168,7 +168,7 @@ function bindDay(sess) {
 // Generated pills for plans without hand-written ones: ~minutes, focus (if the name isn't it), intensity.
 function metaPills(s) {
   const m = sessionMeta(s);
-  return `${m.intensity ? `<span class="hot">${m.intensity}</span>` : ""}<span>~${m.mins} min</span>${m.focus && m.focus !== s.name ? `<span>${m.focus}</span>` : ""}`;
+  return `${m.focus && m.focus !== s.name ? `<span class="typepill">${esc(m.focus)}</span>` : ""}${m.intensity ? `<span class="hot">${m.intensity}</span>` : ""}<span>~${m.mins} min</span>`;
 }
 
 /* ---------- done for the day ---------- */
