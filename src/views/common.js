@@ -11,7 +11,8 @@ export function progress(w, s) {
   return [n, t];
 }
 export const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-export const thumbHTML = id => { const e = EX[id]; return figure(solve(Object.assign({ v: e.v }, e.B)), Object.assign({ _t: e.B.t }, e), { thumb: true }); };
+import { mediaFor } from "../plan/media.js";
+export const thumbHTML = id => { const m = mediaFor(id); if (m) return `<img class="rd" src="${m.peak}" alt="" loading="lazy" decoding="async">`; const e = EX[id]; return figure(solve(Object.assign({ v: e.v }, e.B)), Object.assign({ _t: e.B.t }, e), { thumb: true }); };
 export const CHECK = `<svg viewBox="0 0 24 24" fill="none" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>`;
 export const RUNICON = `<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="currentColor"/></svg>`;
 export const keep = fn => { const y = window.scrollY; fn(); window.scrollTo(0, y); };
