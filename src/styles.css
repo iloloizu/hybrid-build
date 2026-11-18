@@ -431,3 +431,44 @@ button.donebanner span { font: 800 11px var(--body); letter-spacing: .1em; text-
 .runlog.inline:has(.rl-pace:not(:empty)) { grid-template-columns: auto 1fr 1fr auto; }
 .runlog.inline .field { height: 44px; }
 .bigbtn.finish { min-height: 58px; font: 400 26px var(--display); letter-spacing: .08em; border-radius: 16px; }
+
+/* explore */
+.tabs { grid-template-columns: repeat(5, 1fr); }
+.tabs a { font-size: 9.5px; letter-spacing: .06em; }
+.plans { display: grid; gap: 10px; }
+.plancard { display: grid; gap: 6px; text-align: left; width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; cursor: pointer; color: var(--ink); }
+.plancard.active { border-color: var(--accent); }
+.plancard:active { transform: scale(.99); }
+.pc-top { display: flex; justify-content: space-between; align-items: center; }
+.pc-by { font: 800 10.5px var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.pc-badge { font: 800 10px var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--bg); background: var(--accent); border-radius: 99px; padding: 3px 8px; }
+.pc-name { font: 400 28px/1 var(--display); text-transform: uppercase; letter-spacing: .02em; }
+.pc-blurb { font: 500 13.5px var(--body); color: var(--muted); }
+.pc-stats { display: flex; gap: 14px; margin-top: 4px; font: 700 11px var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.pc-stats b { font: 400 18px var(--display); color: var(--ink); margin-right: 2px; }
+.importbox { display: grid; gap: 10px; border: 1px dashed #3a3a3e; border-radius: 16px; padding: 14px; }
+.importbox b { display: block; font: 800 14px var(--body); }
+.importbox span { font-size: 13px; color: var(--muted); }
+.planhero { display: grid; gap: 8px; }
+.planhero h2 { font-size: clamp(34px, 10vw, 52px); line-height: .95; color: var(--accent); }
+.planhero p { margin: 0; color: var(--muted); font-size: 14.5px; max-width: 60ch; }
+.planhero .pnote { font-size: 12.5px; }
+.weekchips button { min-height: 36px; }
+.plandays { display: grid; gap: 10px; }
+.pday { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: grid; gap: 8px; }
+.pday.rest { grid-template-columns: 44px 1fr; align-items: center; padding: 10px 12px; }
+.pday.rest b { color: var(--muted); }
+.pd-dow { font: 800 10.5px var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.pday > b { font: 400 22px var(--display); text-transform: uppercase; letter-spacing: .02em; }
+.pd-sub { font-size: 13px; color: var(--muted); }
+.pday ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.pday li button { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; width: 100%; text-align: left; background: var(--card-2); border: 0; border-radius: 10px; padding: 5px 10px 5px 5px; cursor: pointer; color: var(--ink); }
+.pday .thumb { width: 40px; height: 40px; border-radius: 8px; }
+.pi-name { font: 700 13.5px var(--body); }
+.pi-name em { font-style: normal; font-weight: 800; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.pi-dose { font: 400 17px var(--display); letter-spacing: .03em; text-align: right; }
+.pi-dose small { display: block; font: 700 10.5px var(--body); color: var(--muted); letter-spacing: .02em; }
+.trybar { position: sticky; bottom: calc(var(--tabh) + env(safe-area-inset-bottom) + 10px); display: grid; gap: 8px; justify-items: center; z-index: 5; }
+.trybar .bigbtn { box-shadow: 0 8px 30px rgba(0, 0, 0, .5); }
+@media (min-width: 700px) { .plans { grid-template-columns: repeat(2, minmax(0, 1fr)); } .plandays { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; } .pday.rest { align-self: start; } }
+@media (min-width: 960px) { .tabs { grid-template-columns: 1fr; } }
