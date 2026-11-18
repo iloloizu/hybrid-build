@@ -1,6 +1,6 @@
 # Hybrid Build – spec and handoff
 
-Owner: Ilolo Izu. Prototype lives in `index.html` (single file, no build step). It is also published as a Claude artifact, which gives it a small document database (`claude.use("db")`) for synced logs and the Strava feed. Outside that host the page falls back to localStorage.
+Owner: Ilolo Izu. The app is a Vite project under `src/` (see README for the module map); the original single-file prototype is kept at `prototype/index.html`. It is also published as a Claude artifact, which gives it a small document database (`claude.use("db")`) for synced logs and the Strava feed. Outside that host the page falls back to localStorage.
 
 ## Goal
 10-week strength block run alongside marathon training. Priorities: arms, shoulders, back (high volume), chest moderate, legs near maintenance, knees-over-toes work every session. Block starts Mon Nov 16 2026.
@@ -36,7 +36,7 @@ Sets and reps per phase: `MAIN` (main lifts), `KOT` (knee work), `dose()` for ac
 - `meta/sync` → `{at, status, count}`
 
 ## Next steps (real app)
-1. Split `index.html` into modules (plan data, figure engine, storage, views) with a build step and tests for `dose()`, `pushToTomorrow()`, `tweenJ()`.
+1. ~~Split `index.html` into modules with a build step and tests for `dose()`, `pushToTomorrow()`, `tweenJ()`.~~ Done. Known issue found by the tests: in 13 exercises the elbow snaps for one frame mid-rep (`KNOWN_ELBOW_SNAPS` in `test/tween.test.js`).
 2. iOS app (or PWA first): Apple Health / Apple Watch via HealthKit for runs and workouts; replaces the Chrome-based Strava scrape. Strava API as a second source.
 3. Auto-adjust lifting when the run log shows a hard or long day (cap lower-body load, suggest swaps).
 4. Progress screen: top-set trends, weekly sets per muscle, waist and photo check-ins (weeks 0, 5, 10).

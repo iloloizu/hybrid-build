@@ -1,0 +1,28 @@
+{
+  "name": "hybrid-build",
+  "version": "1.0.0",
+  "description": "Hybrid Build: 10-week strength block alongside marathon training.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "parity": "node scripts/parity.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iloloizu/hybrid-build.git"
+  },
+  "bugs": {
+    "url": "https://github.com/iloloizu/hybrid-build/issues"
+  },
+  "homepage": "https://github.com/iloloizu/hybrid-build#readme",
+  "devDependencies": {
+    "vite": "^5.4.21",
+    "vite-plugin-singlefile": "^2.3.4",
+    "vitest": "^2.1.9"
+  },
+  "private": true,
+  "type": "module"
+}
