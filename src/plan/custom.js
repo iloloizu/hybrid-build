@@ -73,7 +73,7 @@ export function lastLogs(W, dayIdx) {
     for (let d = 0; d < upTo; d++) {
       const s = a[d]; if (s < 0 || !DAYS[s]) continue;
       itemsFor(Wk, s).forEach(({ it, i }) => {
-        const sets = []; for (let n = 0; n < 12; n++) { const v = sget(setKey(Wk, s, i, n)); if (v && v.w) sets[n] = { w: v.w, r: v.r }; }
+        const sets = []; for (let n = 0; n < 12; n++) { const v = sget(setKey(Wk, s, i, n)); if (v && v.w && !v.z) sets[n] = { w: v.w, r: v.r }; }
         if (sets.length) map[exFor(it, Wk, s, i)] = sets;
       });
     }

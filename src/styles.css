@@ -404,3 +404,6 @@ button.donebanner span { font: 800 11px var(--body); letter-spacing: .1em; text-
 .stats span { font: 800 10px var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
 .sheet-body .runlog { grid-template-columns: 1fr 1fr auto; }
 .confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 60; }
+.set.zeroed { opacity: .45; }
+.set.zeroed .chk[aria-pressed="true"] { background: var(--card-2); border-color: var(--line); }
+.set.zeroed .chk[aria-pressed="true"] svg { stroke: var(--muted); }
