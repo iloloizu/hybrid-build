@@ -78,9 +78,8 @@ export function renderDay(w, d, isTodayTab) {
     } else { const c = exCard(it, i, sess); if (c) h += c; i++; }
   }
   itemsFor(W, sess).filter(x => x.it.added).forEach(({ it, i }) => { h += exCard(it, i, sess); });
-  h += `</div><button class="bigbtn ghost" id="addex">${ICON.plus}<span>Add exercise</span></button>`;
+  h += `</div><div class="endrow"><button class="endbtn" id="addex">${ICON.plus}<span>Add exercise</span></button><button class="endbtn" id="shorttime">${ICON.timer}<span>Short on time</span></button></div>`;
   if (!acts.length) h += runLine(date);
-  h += `<button class="bigbtn ghost" id="shorttime">${ICON.timer}<span>Short on time?</span></button>`;
   h += finishBlock(date, [n, tot]);
   app.innerHTML = h; bindDay(sess); keepAwake(true);
 }
@@ -163,19 +162,32 @@ function bindDay(sess) {
 // Run line near the end of the day: miles + minutes, saved as you type.
 function runLine(date) {
   const r = getRun(iso(date)) || {};
-  return `<div class="runlog inline"><span class="rl-lbl">Run</span><label class="field"><input inputmode="decimal" enterkeyhint="next" id="day-run-mi" aria-label="Miles run" value="${esc(r.mi)}" placeholder="—"><span>mi</span></label><label class="field"><input inputmode="numeric" enterkeyhint="done" id="day-run-min" aria-label="Minutes run" value="${esc(r.min)}" placeholder="—"><span>min</span></label><span class="rl-pace" id="day-run-pace">${pace(r)}</span></div>`;
+  return `<div class="runlog inline"><span class="rl-lbl">${ICON.run}<span>Run</span></span><label class="field"><input inputmode="decimal" enterkeyhint="next" id="day-run-mi" aria-label="Miles run" value="${esc(r.mi)}" placeholder="—"><span>mi</span></label><label class="field"><input inputmode="numeric" enterkeyhint="done" id="day-run-min" aria-label="Minutes run" value="${esc(r.min)}" placeholder="—"><span>min</span></label><span class="rl-pace" id="day-run-pace">${pace(r)}</span></div>`;
 }
 function finishBlock(date, prog) {
   const k = iso(date), r = getRun(k);
-  if (isFinished(k)) return `<button class="donebanner" id="finish"><b>Done for the day</b><span>${prog && prog[1] ? `${prog[0]}/${prog[1]} sets` : ""}${prog && prog[1] && r && r.mi ? " · " : ""}${r && r.mi ? `${r.mi} mi` : ""}</span></button>`;
-  return `<button class="bigbtn finish" id="finish">Done for the day</button>`;
+  if (isFinished(k)) return `<button class="donebanner" id="finish"><b>Done</b><span>${prog && prog[1] ? `${prog[0]}/${prog[1]} sets` : ""}${prog && prog[1] && r && r.mi ? " · " : ""}${r && r.mi ? `${r.mi} mi` : ""}</span></button>`;
+  return `<button class="bigbtn finish" id="finish">Done</button>`;
 }
 function finishSheet(W, d, sess) {
   const date = dayDate(W, d), k = iso(date), [n, tot] = progress(W, sess);
-  let vol = 0; if (sess >= 0) itemsFor(W, sess).forEach(({ i }) => { for (let s = 0; s < 12; s++) { const v = sget(setKey(W, sess, i, s)); if (v && v.d) vol += (parseFloat(v.w) || 0) * (parseInt(v.r) || 0); } });
+  // Per exercise: real sets only (not the 0s from closing out), compared with the last time you did it.
+  const before = sess >= 0 ? lastLogs(W, d) : {}, num = v => parseFloat(v && v.w) || 0, avg = a => a.reduce((t, v) => t + num(v), 0) / a.length;
+  let vol = 0, real = 0; const rows = [];
+  if (sess >= 0) itemsFor(W, sess).forEach(({ it, i }) => {
+    const x = exFor(it, W, sess, i), sets = [];
+    for (let s = 0; s < 12; s++) { const v = sget(setKey(W, sess, i, s)); if (v && v.d && !v.z) { real++; if (num(v)) sets.push(v); } }
+    if (!sets.length) return;
+    const v0 = sets.reduce((t, v) => t + num(v) * (parseInt(v.r) || 0), 0); vol += v0;
+    const prev = (before[x] || []).filter(v => v && num(v)), a = avg(sets), diff = prev.length ? Math.round((a - avg(prev)) * 10) / 10 : null;
+    rows.push({ name: EX[x].name, a: Math.round(a * 10) / 10, diff, v0 });
+  });
+  const trend = r => r.diff == null ? `<em class="new">New</em>` : r.diff > 0 ? `<em class="up">▲ ${r.diff}</em>` : r.diff < 0 ? `<em class="down">▼ ${Math.abs(r.diff)}</em>` : `<em class="same">=</em>`;
+  const ups = rows.filter(r => r.diff > 0).length, downs = rows.filter(r => r.diff < 0).length;
   const act = (ACTS[k] || [])[0], R = getRun(k) || (act ? { mi: act.distance_mi ? String(act.distance_mi) : "", min: "" } : {});
-  openSheet({ title: "Done for the day", render: (body, api) => {
-    body.innerHTML = `${tot ? `<div class="stats"><div><b>${n}/${tot}</b><span>Sets</span></div><div><b>${vol ? Math.round(vol).toLocaleString() : "—"}</b><span>lb moved</span></div></div>` : ""}
+  openSheet({ title: "Done", render: (body, api) => {
+    body.innerHTML = `${tot ? `<div class="stats"><div><b>${vol ? Math.round(vol).toLocaleString() : "—"}</b><span>lb lifted</span></div><div><b>${real}/${tot}</b><span>Sets</span></div></div>` : ""}
+      ${rows.length ? `<div class="lbl">How it went<em>${ups ? `${ups} up` : ""}${ups && downs ? " · " : ""}${downs ? `${downs} down` : ""}${!ups && !downs ? "vs last time" : ""}</em></div><div class="liftstats">${rows.map(r => `<div class="ls"><span class="ln">${esc(r.name)}</span><span class="la">${r.a} lb avg</span>${trend(r)}<span class="lv">${Math.round(r.v0).toLocaleString()} lb</span></div>`).join("")}</div>` : ""}
       <div class="lbl">Run today?<em>${act ? "From Strava" : "Skip if you didn't"}</em></div>
       <div class="runlog"><label class="field"><input inputmode="decimal" enterkeyhint="next" id="run-mi" aria-label="Miles run" value="${esc(R.mi)}" placeholder="—"><span>mi</span></label><label class="field"><input inputmode="numeric" enterkeyhint="done" id="run-min" aria-label="Minutes run" value="${esc(R.min)}" placeholder="—"><span>min</span></label><span class="rl-pace" id="run-pace">${pace(R)}</span></div>
       <button class="bigbtn" id="fin-go">Finish</button>`;
