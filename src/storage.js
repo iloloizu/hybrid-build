@@ -9,8 +9,15 @@ export function sget(k) { const g = STORE[docName(k)]; return g ? g[k] : undefin
 export function sset(k, v) {
   const d = docName(k); STORE[d] = STORE[d] || {};
   if (v == null) delete STORE[d][k]; else STORE[d][k] = v;
-  persistLocal(); dirty.add(d); flush();
+  persistLocal(); dirty.add(d); flush(); keepForever();
 }
+// Ask the browser not to evict our data (Safari otherwise may clear it after weeks without use).
+let persistAsked = false;
+export function keepForever() {
+  if (persistAsked) return; persistAsked = true;
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {}
+}
+export const isSynced = () => !!(DB && UID);
 let flushing = false;
 export async function flush() {
   if (!DB || !UID || flushing) return;
@@ -50,4 +57,19 @@ export async function connect(onRemote) {
       }, () => {});
     }
   } catch (e) { /* offline: local copy keeps working */ }
+}
+
+/* ---------- backup: download all logs as a file, restore from one ---------- */
+const DOC_RE = /^(w\d+s\d+|sched\d+)$/;
+export function backupJSON() { return JSON.stringify({ app: "hybrid-build", v: 1, exported_at: new Date().toISOString(), data: STORE }, null, 1); }
+// Returns the number of docs restored, or throws with a short reason.
+export function restoreJSON(text) {
+  let x; try { x = JSON.parse(text); } catch (e) { throw new Error("Not a backup file"); }
+  const data = x && x.app === "hybrid-build" ? x.data : null;
+  if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Not a Hybrid Build backup");
+  const docs = Object.entries(data).filter(([k, v]) => DOC_RE.test(k) && v && typeof v === "object" && !Array.isArray(v));
+  for (const k of Object.keys(STORE)) { delete STORE[k]; dirty.add(k); }
+  for (const [k, v] of docs) { STORE[k] = Object.assign({}, v); dirty.add(k); }
+  persistLocal(); flush(); keepForever();
+  return docs.length;
 }

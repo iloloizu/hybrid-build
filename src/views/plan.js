@@ -1,4 +1,5 @@
 import { ui } from "../state.js";
+import { saveBar, bindSaveBar } from "./savebar.js";
 import { EX } from "../plan/exercises.js";
 import { KNEE, SWAPS, DAYS, DOW, PHASES, phaseOf, phaseName, dose, FLAGS, dayDate, fmt, iso } from "../plan/plan.js";
 import { STORE, ACTS, SYNC, dirty, persistLocal, sget, sset, flush, setKey, warmKey, schedKey } from "../storage.js";
@@ -31,11 +32,11 @@ export function renderPlan() {
       <div class="longrun">${skipped ? "You skipped today. If you've got 20 minutes, Pump Only keeps the priority muscles moving." : "Nothing scheduled after the shuffle. Easy run or full rest."}</div>${stravaCard}
       ${skipped ? `<div class="chips"><button data-sw="S5" aria-pressed="${ui.swapOpen === "S5"}"><b>20 min</b>Pump Only</button></div>${ui.swapOpen ? `<div class="swapbox"><ol>${SWAPS[ui.swapOpen].l.map(x => `<li>${x}</li>`).join("")}</ol></div>` : ""}` : ""}
       <button class="textbtn" id="resetweek">Undo all changes this week</button>`;
-    app.innerHTML = h; bindPlan(); return;
+    app.innerHTML = h + saveBar(); bindPlan(); return;
   }
   if (d.kind === "run") {
     h += `<section class="hero"><h2 class="run">${d.name}</h2><div class="meta"><span>${fmt(date)}</span><span>Long run</span><span>No lifting</span></div></section>${stravaCard || `<div class="longrun">Long run day. It shows up here once Strava syncs tonight.</div>`}`;
-    app.innerHTML = h; bindPlan(); return;
+    app.innerHTML = h + saveBar(); bindPlan(); return;
   }
   const [n, t] = progress(ui.week, sess);
   const moved = sess !== ui.dayIdx ? `<span class="hot">Moved from ${DOW[sess]}</span>` : "";
@@ -62,7 +63,7 @@ export function renderPlan() {
   h += `</div><div class="lbl">Short on time</div><div class="chips">${d.swaps.map(k => `<button data-sw="${k}" aria-pressed="${ui.swapOpen === k}"><b>${SWAPS[k].m}</b>${SWAPS[k].t}</button>`).join("")}</div>`;
   if (ui.swapOpen) h += `<div class="swapbox"><ol>${SWAPS[ui.swapOpen].l.map(x => `<li>${x}</li>`).join("")}</ol></div>`;
   h += `<div class="foot"><button class="textbtn" id="clearday">Clear this session's log</button><button class="textbtn" id="resetweek">Undo schedule changes</button></div>`;
-  app.innerHTML = h; bindPlan();
+  app.innerHTML = h + saveBar(); bindPlan();
 }
 export function exCard(it, i, sess) {
   const ds = dose(it, ui.week); if (!ds) return "";
@@ -81,6 +82,7 @@ export function exCard(it, i, sess) {
   return `<article class="ex${all ? " done" : ""}"><button class="exhead" data-ex="${it.x}" aria-label="How to do ${esc(e.name)}"><span class="thumb">${thumbHTML(it.x)}</span><span><span class="exname">${e.name}</span>${sub ? `<span class="exsub">${sub}</span>` : ""}</span><span class="dose">${ds.s}×${ds.r}<small>${it.u ? it.u.replace("/", "per ") : "sets × reps"}</small></span></button><div class="sets">${rows}</div></article>`;
 }
 export function bindPlan() {
+  bindSaveBar();
   const app = document.getElementById("app");
   const sess = slots(ui.week)[ui.dayIdx];
   const on = (sel, fn) => app.querySelectorAll(sel).forEach(b => b.onclick = () => fn(b));

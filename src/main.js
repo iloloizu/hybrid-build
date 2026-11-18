@@ -10,3 +10,8 @@ const safeRender = () => { if (ui.view === "plan" && !(document.activeElement &&
 
 if (location.hash === "#posegrid") renderPoseGrid();
 else { renderPlan(); connect(safeRender); }
+
+// Installable + offline when self-hosted. Skipped inside the Claude artifact host and from file://.
+if (import.meta.env.PROD && "serviceWorker" in navigator && location.protocol.startsWith("http") && !(window.claude && window.claude.use)) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+}

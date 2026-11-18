@@ -10,7 +10,8 @@ const TARGETS = { prototype: "prototype/index.html", build: "dist/index.html" };
 const NOW = new Date(process.env.PARITY_NOW || "2026-11-18T12:00:00");
 
 // rAF phase can shift the progress bar by a few ms between runs; compare it to 1%.
-const norm = h => h.replace(/(id="prog" style="width: )([\d.]+)%/, (_, a, v) => a + Math.round(+v) + "%");
+// The save bar (step 2) is new in the build, so it is left out of the comparison.
+const norm = h => h.replace(/<div class="savebar">.*?<\/div>/s, "").replace(/(id="prog" style="width: )([\d.]+)%/, (_, a, v) => a + Math.round(+v) + "%");
 
 // Fake Claude artifact host: claude.use("db") / claude.use("user"), records every write.
 const FAKE_HOST = () => {
