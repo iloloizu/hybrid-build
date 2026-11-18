@@ -14,5 +14,6 @@ export const ICON = {
   swap: I(`<path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>`),
   plus: I(`<path d="M12 5v14M5 12h14"/>`),
   minus: I(`<path d="M5 12h14"/>`),
+  run: I(`<circle cx="14" cy="4.5" r="2"/><path d="M8 21l3-6 3 2v4M6 12l3-3 4 1 3 4 3 1M10 15l-1-4"/>`),
   timer: I(`<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/>`),
 };
