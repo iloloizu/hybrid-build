@@ -62,7 +62,7 @@ export async function connect(onRemote) {
 }
 
 /* ---------- backup: download all logs as a file, restore from one ---------- */
-const DOC_RE = /^((b\d+)?w\d+(r\d+)?s\d+|sched[\w]+|blocks|checkin|runs)$/;
+const DOC_RE = /^((b\d+)?w\d+(r\d+)?s\d+|sched[\w]+|blocks|checkin|runs|days)$/;
 export function backupJSON() { return JSON.stringify({ app: "hybrid-build", v: 1, exported_at: new Date().toISOString(), data: STORE }, null, 1); }
 // Returns the number of docs restored, or throws with a short reason.
 export function restoreJSON(text) {
