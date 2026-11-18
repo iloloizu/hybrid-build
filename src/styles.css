@@ -385,3 +385,9 @@ button, a, .chk { touch-action: manipulation; }
 .preview li.chg span { color: var(--ink); font-weight: 800; }
 .optnote.drop { color: var(--accent); }
 .dn small em.rn { color: var(--run); }
+
+/* card actions: icon only */
+.exfoot { gap: 2px; margin: -4px -6px -6px; }
+.exfoot button.ib { width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; background: none; border-radius: 12px; color: var(--muted); display: grid; place-items: center; }
+.exfoot button.ib svg { width: 24px; height: 24px; }
+.exfoot button.ib:active { background: var(--card-2); color: var(--ink); }

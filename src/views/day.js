@@ -100,7 +100,7 @@ export function exCard(it, i, sess) {
       <button class="chk" aria-label="Set ${s + 1} done" aria-pressed="${!!v.d}" data-i="${i}" data-s="${s}" data-done="1">${CHECK}</button></div>`;
   }
   const sub = [subbed ? `<span class="p">For ${esc(EX[it.x].name)}</span>` : it.tag === "main" ? `<span class="p">Main lift</span>` : it.tag === "pri" ? `<span class="p">Priority</span>` : "", ds.note].filter(Boolean).join(" · ");
-  const foot = `<div class="exfoot"><button data-addset="${i}" aria-label="Add a set">+ Set</button>${extra ? `<button data-rmset="${i}" aria-label="Remove the last added set">− Set</button>` : ""}<button data-subopen="${i}">${ICON.swap}<span>Substitute</span></button></div>`;
+  const foot = `<div class="exfoot"><button class="ib" data-addset="${i}" aria-label="Add a set" title="Add a set">${ICON.plus}</button>${extra ? `<button class="ib" data-rmset="${i}" aria-label="Remove the last added set" title="Remove a set">${ICON.minus}</button>` : ""}<button class="ib" data-subopen="${i}" aria-label="Substitute ${esc(e.name)}" title="Substitute">${ICON.swap}</button></div>`;
   return `<article class="ex${all ? " done" : ""}${subbed ? " subbed" : ""}" id="ex-${i}"><button class="exhead" data-ex="${x}" aria-label="How to do ${esc(e.name)}"><span class="thumb">${thumbHTML(x)}</span><span><span class="exname">${e.name}</span>${sub ? `<span class="exsub">${sub}</span>` : ""}</span><span class="dose">${total}×${ds.r}<small>${extra ? `+${extra} extra` : it.u ? it.u.replace("/", "per ") : "sets × reps"}</small></span></button><div class="sets">${rows}</div>${foot}</article>`;
 }
 
