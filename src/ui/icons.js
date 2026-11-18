@@ -12,5 +12,7 @@ export const ICON = {
   close: I(`<path d="M6 6l12 12M18 6 6 18"/>`),
   search: I(`<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>`),
   swap: I(`<path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>`),
+  plus: I(`<path d="M12 5v14M5 12h14"/>`),
+  minus: I(`<path d="M5 12h14"/>`),
   timer: I(`<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/>`),
 };
