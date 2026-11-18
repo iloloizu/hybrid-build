@@ -291,3 +291,15 @@ EX.dbohext = alt("ohext", { name: "Overhead DB triceps extension", muscles: ["Tr
 EX.assistpull = alt("pullup", { name: "Assisted pull-up", muscles: ["Lats", "Upper back", "Biceps"], equip: "Assisted pull-up machine or band",
   steps: ["Set the assist so you can get the reps with 2 left in the tank.", "Hang with a grip just wider than shoulders.", "Pull your chest up toward the bar, elbows driving down.", "Lower all the way to straight arms."],
   cues: ["Chest to the bar", "Full hang each rep"], mistake: "Too much assist and half reps; use less help and full range." });
+
+/* ---------- sources: every library exercise is checked against research / NSCA, ACE, ExRx ----------
+   sources.json holds 1-3 references per exercise, an evidence level, and corrections where the
+   original text overstated something. Corrections replace the text here. */
+import SOURCES from "./sources.js";
+for (const [id, s] of Object.entries(SOURCES)) {
+  const e = EX[id]; if (!e) continue;
+  const ed = s.edits || {};
+  ["steps", "cues", "muscles"].forEach(k => { if (Array.isArray(ed[k]) && ed[k].length) e[k] = ed[k].slice(); });
+  if (typeof ed.mistake === "string" && ed.mistake) e.mistake = ed.mistake;
+  e.sources = (s.sources || []).filter(x => /^https:\/\//.test(x.url)); e.evidence = s.evidence;
+}

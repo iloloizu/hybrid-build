@@ -100,8 +100,8 @@ export function shapeD(a, b, prof, fs) {
 }
 export const MUSCLE_KEYS = [
   [/upper chest|chest/i, ["chest"]], [/front delt|side delt/i, ["delt"]], [/rear delt/i, ["reardelt"]], [/lower traps/i, ["traps"]],
-  [/triceps/i, ["triceps"]], [/biceps|brachialis/i, ["biceps"]], [/forearm/i, ["forearm"]], [/lats/i, ["lats"]], [/upper back/i, ["traps", "upperback"]],
-  [/^back$|spine/i, ["lowerback"]], [/abs/i, ["abs"]], [/hip flexor/i, ["hipflex"]], [/quads|knees|adductor/i, ["quads"]], [/glute/i, ["glutes"]],
+  [/triceps/i, ["triceps"]], [/biceps|brachialis/i, ["biceps"]], [/forearm|brachioradialis/i, ["forearm"]], [/lats/i, ["lats"]], [/upper back/i, ["traps", "upperback"]],
+  [/^back$|spine|spinal|erector/i, ["lowerback"]], [/abs/i, ["abs"]], [/hip flexor/i, ["hipflex"]], [/quads|knees|adductor/i, ["quads"]], [/glute/i, ["glutes"]],
   [/hamstring/i, ["hams"]], [/calves|soleus|achilles/i, ["calves"]], [/tibialis|shins/i, ["tib"]]
 ];
 export function muscleKeys(list) { const pri = new Set(), sec = new Set(); list.forEach((m, i) => MUSCLE_KEYS.forEach(([re, ks]) => { if (re.test(m)) ks.forEach(k => (i === 0 ? pri : sec).add(k)); })); pri.forEach(k => sec.delete(k)); return [pri, sec]; }

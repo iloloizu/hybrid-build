@@ -32,6 +32,7 @@ export function renderEx(id, from) {
     ${e.steps.length ? `<section class="howto"><div class="lbl">How to</div><ol>${e.steps.map(x => `<li>${x}</li>`).join("")}</ol></section>` : ""}
     ${e.cues.length ? `<section class="howto"><div class="lbl">Cues</div><ul>${e.cues.map(x => `<li>${x}</li>`).join("")}</ul></section>` : ""}
     ${e.mistake ? `<section class="howto warn"><div class="lbl">Don't</div><div style="font-size:14.5px">${e.mistake}</div></section>` : ""}
+    ${e.sources && e.sources.length ? `<section class="howto sources"><div class="lbl">Sources<em class="ev ${e.evidence}">${{ strong: "Strong evidence", moderate: "Moderate evidence", limited: "Limited evidence" }[e.evidence] || ""}</em></div>${e.evidence === "limited" ? `<div class="evnote">Mostly coaching practice. Little direct research on this exact movement.</div>` : ""}<ol>${e.sources.map(x => `<li><a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a><small>${esc([x.publisher, x.year].filter(Boolean).join(" · "))}</small></li>`).join("")}</ol></section>` : ""}
     ${e.fromPlan ? `<section class="howto"><div class="lbl">From ${esc(e.fromPlan)}</div><div style="font-size:14.5px">Animation shows a similar movement (${esc(EX[e.alt] ? EX[e.alt].name : "")}).</div></section>` : ""}
     ${from.workout ? `<button class="backbig" id="back2">Back to workout</button>` : ""}
     <div class="equip">Equipment: ${e.equip}${e.photo ? ` · Photos: <a href="https://github.com/yuhonas/free-exercise-db">Free Exercise DB</a> (public domain)` : ""}</div>`;
