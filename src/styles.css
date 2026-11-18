@@ -499,3 +499,9 @@ body:has(#timer.on) .wrap { padding-bottom: calc(var(--tabh) + 100px + env(safe-
 .ev.limited { color: var(--accent); }
 .evnote { font-size: 13px; color: var(--muted); }
 .typepill { color: var(--bg) !important; background: var(--ink) !important; border-color: var(--ink) !important; }
+
+/* RepDB clips: white studio background in a rounded tile */
+.vstage { background: #fff; display: grid; place-items: center; aspect-ratio: 1; max-height: 420px; }
+.vstage video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.still.rd img { background: #f4f4f4; object-fit: contain; aspect-ratio: 1; }
+.thumb img.rd { object-fit: contain; background: #f4f4f4; }
