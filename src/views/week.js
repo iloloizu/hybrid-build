@@ -5,7 +5,7 @@ import { ACTS, sget, sset, schedKey } from "../storage.js";
 import { slots, warnings } from "../schedule.js";
 import { getRun, isFinished } from "../plan/runs.js";
 import { sessionMeta } from "../plans/index.js";
-import { progress, RUNICON } from "./common.js";
+import { progress, RUNICON, esc } from "./common.js";
 import { go } from "../router.js";
 import { topbar } from "../ui/topbar.js";
 import { ICON } from "../ui/icons.js";
@@ -42,7 +42,7 @@ export function renderWeek(w) {
       const fin = isFinished(iso(date)), state = fin ? "✓" : run ? (ran ? "✓" : "") : tot ? (n === tot ? "✓" : n ? `${n}/${tot}` : "") : "";
       return `<button class="dayrow${today ? " today" : ""}${off ? " off" : ""}${run ? " run" : ""}${(n && n === tot) || fin ? " done" : ""}" data-day="${i}">
         <span class="dd"><small>${dowName(i)}</small><b>${date.getDate()}</b></span>
-        <span class="dn"><b>${name}</b><small>${today ? `<em>Today</em> · ` : ""}${flag ? `<em class="fl">${flag}</em> · ` : ""}${s >= 0 && s !== i ? `Moved from ${dowName(s)} · ` : ""}${info}${mine && mine.mi ? ` · <em class="rn">${mine.mi} mi</em>` : ""}</small>${tot ? `<i class="bar"><em style="width:${n / tot * 100}%"></em></i>` : ""}</span>
+        <span class="dn"><b>${esc(name)}</b><small>${today ? `<em>Today</em> · ` : ""}${flag ? `<em class="fl">${flag}</em> · ` : ""}${s >= 0 && s !== i ? `Moved from ${dowName(s)} · ` : ""}${info}${mine && mine.mi ? ` · <em class="rn">${mine.mi} mi</em>` : ""}</small>${tot ? `<i class="bar"><em style="width:${n / tot * 100}%"></em></i>` : ""}</span>
         <span class="ds">${ran ? `<span class="ran">${RUNICON}</span>` : ""}${state ? `<b>${state}</b>` : ""}${ICON.next}</span></button>`;
     }).join("")}</div>`;
     warnings(W).forEach(x => h += `<div class="warnline">${x}</div>`);

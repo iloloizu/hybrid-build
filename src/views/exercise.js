@@ -24,7 +24,7 @@ export function renderEx(id, from) {
     : `<figure class="still">${figure(JA, ex, { label: "start" })}<figcaption><b>01</b>Start</figcaption></figure><figure class="still">${figure(JB, Object.assign({}, ex, { _t: e.B.t }), { label: "finish" })}<figcaption><b>02</b>Finish</figcaption></figure>`;
   document.getElementById("app").className = "wrap exview";
   document.getElementById("app").innerHTML = topbar({ title: "How to", sub: e.muscles[0], back: { label: from.label } }) + `
-    <div class="dtitle"><h2>${e.name}</h2><div class="mus">${e.muscles.map((m, i) => `<span class="${i === 0 ? "hl" : ""}">${m}</span>`).join("")}</div></div>
+    <div class="dtitle"><h2>${esc(e.name)}</h2><div class="mus">${e.muscles.map((m, i) => `<span class="${i === 0 ? "hl" : ""}">${esc(m)}</span>`).join("")}</div></div>
     ${e.photo ? `<div class="modes"><button data-mode="diagram" aria-pressed="${mode === "diagram"}">Animation</button><button data-mode="photo" aria-pressed="${mode === "photo"}">Real photo</button></div>` : ""}
     <div class="player">${stage}<div class="pbar"><button class="pbtn" id="pp" aria-label="Pause">${PAUSE}</button><div class="track"><i id="prog"></i></div><span class="time" id="tm">0:00 / 0:10</span></div></div>
     <div class="stills">${stills}</div>
