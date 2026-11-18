@@ -5,6 +5,7 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 // published as a Claude artifact or opened straight from disk.
 export default defineConfig({
   plugins: [viteSingleFile()],
+  base: "./", // relative URLs, so it works on any host or sub-path (e.g. GitHub Pages)
   build: { target: "es2020" },
   test: { environment: "node" }
 });
