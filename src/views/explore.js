@@ -10,6 +10,7 @@ import { ICON } from "../ui/icons.js";
 import { toast } from "../ui/toast.js";
 import { openSheet } from "../ui/sheet.js";
 import { rerender } from "./app.js";
+import { twoTap } from "../ui/confirm.js";
 
 /* ---------- explore: browse plans, try one as a new block ---------- */
 const activePlan = () => { const f = findDate(); const b = f && blocks().find(x => x.id === f.b); return b ? (b.plan || "hybrid") : null; };
@@ -57,7 +58,7 @@ export function renderPlanPage(id) {
   app.querySelectorAll("[data-ex]").forEach(b => b.onclick = () => go(`#/ex/${b.dataset.ex}`));
   document.getElementById("tb-back").onclick = () => back("#/explore");
   document.getElementById("tryplan").onclick = () => trySheet(P);
-  const rm = document.getElementById("rmplan"); if (rm) rm.onclick = () => { if (!confirm(`Remove ${P.name}? Blocks already using it keep their logs.`)) return; removePlan(id); toast("Plan removed."); back("#/explore"); };
+  twoTap(document.getElementById("rmplan"), "Tap again to remove this plan", () => { removePlan(id); toast("Plan removed."); back("#/explore"); });
 }
 
 function trySheet(P) {

@@ -1,12 +1,14 @@
 import { ui } from "../state.js";
 import { EX } from "../plan/exercises.js";
 import { KNEE, SWAPS, DAYS, DOW, PHASES, phaseOf, phaseName, dose, flagFor, fmt, iso } from "../plan/plan.js";
+import { sessionMeta } from "../plans/index.js";
 import { weekRef, prevRef, weekLabel, weeksOf, blockById, dayDate, sessionsFor, phaseOfWeek, planOf } from "../plan/blocks.js";
 import { STORE, ACTS, SYNC, dirty, persistLocal, sget, sset, flush, setKey, warmKey, schedKey } from "../storage.js";
 import { exFor, extraSets, addSet, removeSet, setSub, similar, totalSets, lastLogs, itemsFor, itemAt, addExercise, removeExercise, ADD0 } from "../plan/custom.js";
 import { slots, pushToTomorrow, pushPlan, swapDays, skipDay } from "../schedule.js";
 import { getRun, setRun, pace, isFinished, setFinished } from "../plan/runs.js";
 import { confetti } from "../ui/confetti.js";
+import { twoTap } from "../ui/confirm.js";
 import { progress, esc, thumbHTML, CHECK, keep } from "./common.js";
 import { go, back } from "../router.js";
 import { topbar } from "../ui/topbar.js";
@@ -65,7 +67,7 @@ export function renderDay(w, d, isTodayTab) {
     app.innerHTML = h; bindDay(sess); keepAwake(false); return;
   }
   const moved = sess !== d ? `<span class="hot">Moved from ${dowName(sess)}</span>` : "";
-  h += `<section class="hero"><h2>${s.name}</h2><div class="meta"><span class="hot">${P.rir}</span>${moved}${s.mins ? `<span>${s.mins} min</span>` : ""}${s.run ? `<span>${s.run}</span>` : ""}${!hybrid ? `<span>${s.items.length} exercises</span>` : ""}${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>`;
+  h += `<section class="hero"><h2>${s.name}</h2><div class="meta">${hybrid ? `<span class="hot">${P.rir}</span>` : ""}${moved}${hybrid ? `<span>${s.mins} min</span><span>${s.run}</span>` : metaPills(s)}${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>`;
   if (!(n === tot && tot)) h += `<button class="cantbtn" id="cant">Can't train today?</button>`;
   h += strava;
   if (hybrid) {
@@ -98,7 +100,7 @@ export function exCard(it, i, sess) {
   for (let s = 0; s < total; s++) {
     const v = sget(setKey(W, sess, i, s)) || {};
     const prev = (LAST[x] || [])[s] || L[L.length - 1] || {};
-    if (!v.d) all = false;
+    if (!v.d || v.z) all = false;
     rows += `<div class="set${v.d ? " is-done" : ""}${v.z ? " zeroed" : ""}${s >= ds.s ? " extra" : ""}"><span class="n">${s + 1}</span>
       <label class="field"><input inputmode="decimal" enterkeyhint="next" aria-label="Set ${s + 1} weight" data-i="${i}" data-s="${s}" data-f="w" value="${esc(v.w || (v.z ? "" : prev.w) || "")}" placeholder="${it.bw && !subbed ? "BW" : "—"}"><span>lb</span></label>
       <label class="field"><input inputmode="numeric" enterkeyhint="${s + 1 < total ? "next" : "done"}" aria-label="Set ${s + 1} reps" data-i="${i}" data-s="${s}" data-f="r" value="${esc(v.r)}" placeholder="${esc(ds.r)}"><span>reps</span></label>
@@ -161,6 +163,12 @@ function bindDay(sess) {
   on("[data-subopen]", b => subSheet(sess, +b.dataset.subopen));
   on("[data-rmex]", b => { const k = +b.dataset.rmex, name = EX[itemAt(W, sess, ADD0 + k).x].name; removeExercise(W, sess, k); toast(`${name} removed.`); keep(rerender); });
   const ax = document.getElementById("addex"); if (ax) ax.onclick = () => addSheet(sess);
+}
+
+// Generated pills for plans without hand-written ones: ~minutes, focus (if the name isn't it), intensity.
+function metaPills(s) {
+  const m = sessionMeta(s);
+  return `${m.intensity ? `<span class="hot">${m.intensity}</span>` : ""}<span>~${m.mins} min</span>${m.focus && m.focus !== s.name ? `<span>${m.focus}</span>` : ""}`;
 }
 
 /* ---------- done for the day ---------- */
@@ -277,10 +285,15 @@ function dayOptions(sess) {
     body.innerHTML = h + `</div>`;
     body.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { mode = mode === b.dataset.m ? null : b.dataset.m; api.refresh(); });
     body.querySelectorAll("[data-swapwith]").forEach(b => b.onclick = () => { const to = +b.dataset.swapwith; swapDays(w, d, to); api.close(); toast(`Swapped with ${dowName(to)}.`); setTimeout(rerender, 0); });
-    body.querySelectorAll("[data-do]").forEach(b => b.onclick = () => {
+    twoTap(body.querySelector('[data-do="clear"]'), `<b class="tag">⌫</b><span>Tap again to clear every set</span>`, () => runDo("clear"));
+    const runDo = k => {
+      let msg = "";
+      if (k === "clear") { const g = `${w.key}s${sess}`; STORE[g] = {}; persistLocal(); dirty.add(g); flush(); msg = "Session log cleared."; }
+      api.close(); toast(msg); setTimeout(rerender, 0);
+    };
+    body.querySelectorAll('[data-do]:not([data-do="clear"])').forEach(b => b.onclick = () => {
       const k = b.dataset.do;
       if (k === "quick") { api.close(); setTimeout(() => quickSheet(s.swaps), 250); return; }
-      if (k === "clear" && !confirm("Clear every set logged for this session?")) return;
       let msg = "";
       if (k === "push") msg = pushToTomorrow(w, d);
       if (k === "skip") { skipDay(w, d); msg = "Skipped. The rest of the week stays put."; }

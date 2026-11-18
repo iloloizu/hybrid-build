@@ -7,7 +7,7 @@ import { ref } from "../plan/blocks.js";
 
 export function progress(w, s) {
   let n = 0, t = 0; if (s < 0 || ref(w).pause) return [0, 0];
-  itemsFor(w, s).forEach(({ it, i }) => { const ds = dose(it, ref(w).pw); if (!ds) return; const n0 = totalSets(it, w, s, i); for (let k = 0; k < n0; k++) { t++; const v = sget(setKey(w, s, i, k)); if (v && v.d) n++; } });
+  itemsFor(w, s).forEach(({ it, i }) => { const ds = dose(it, ref(w).pw); if (!ds) return; const n0 = totalSets(it, w, s, i); for (let k = 0; k < n0; k++) { t++; const v = sget(setKey(w, s, i, k)); if (v && v.d && !v.z) n++; /* closed-out 0s don't count as lifted */ } });
   return [n, t];
 }
 export const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));

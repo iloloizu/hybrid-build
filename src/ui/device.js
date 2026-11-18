@@ -1,16 +1,7 @@
 /* ---------- small device niceties ---------- */
-export const buzz = (ms = 12) => { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} };
-
-// Keep the screen on while a workout is open (iOS 16.4+, Android Chrome).
-let lock = null, want = false;
-export async function keepAwake(on) {
-  want = on;
-  try {
-    if (on && !lock && "wakeLock" in navigator && document.visibilityState === "visible") { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => { lock = null; }); }
-    if (!on && lock) { await lock.release(); lock = null; }
-  } catch (e) { lock = null; }
-}
-document.addEventListener("visibilitychange", () => { if (want && document.visibilityState === "visible") keepAwake(true); });
+import { haptic, keepAwake as platformKeepAwake } from "../platform/index.js";
+export const buzz = ms => haptic(ms && ms > 20 ? "success" : "tap");
+export const keepAwake = platformKeepAwake;
 
 // Horizontal swipe on an element: calls fn(-1) for swipe right (previous), fn(1) for swipe left (next).
 // Ignores swipes that start on inputs, horizontal scrollers or open sheets.
