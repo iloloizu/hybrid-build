@@ -26,11 +26,14 @@ Sets and reps per phase: `MAIN` (main lifts), `KOT` (knee work), `dose()` for ac
 - Per-set logging (weight, reps, check), last week's weight shown as placeholder.
 - Day controls: push to tomorrow (slides the week, drops lowest-rank session if no room), swap day, skip. Stored per week as a 7-slot array (`sched<week>|slots`); logs are keyed by session, not weekday, so they follow a moved session.
 - Short-on-time swaps (S1-S7 in `SWAPS`).
+- Per exercise: **+ Set / − Set** to log more (or fewer added) sets than planned, and **Substitute** to swap in any library exercise, closest matches first (`similar()` in `src/plan/custom.js`: shared primary muscles, then overlap, then same movement). A substitute holds from that week on. Equipment alternates (`dbbench`, `smithincline`, `machineshoulder`, `dbcurl`, `cablecurl`, `dbohext`, `assistpull`) exist only as substitutes; the plan doesn't use them.
+- Layout: phone first; from 700px wide (iPad mini/Air, open foldables) cards go two-up and supersets sit side by side; from 960px the exercise screen splits into animation and how-to columns.
 - Exercise screen: animated mannequin (figure engine v2: `figInner`, `tweenJ`, `clipSVG`), start/finish stills, muscle map, steps, cues, common mistake. Poses are authored per exercise in `EX` as start (`A`) and finish (`B`) joint targets.
 - Strava feed: reads `strava/<date>-<activityId>` docs and `meta/sync` from the artifact db; a nightly scheduled Claude task writes them by reading Strava in the owner's signed-in Chrome.
 
 ## Data model (db / localStorage `hb4`)
 - `data/users/<uid>/w<week>s<session>` → `{ v: { "<key>|<item>-<set>": {w, r, d}, "…|warm-<i>": 1 } }`
+- Same session doc also holds `"w<week>s<session>|extra-<item>": n` (sets added beyond the plan) and `"…|sub-<item>": "<exercise id>"` (substitute from that week on; `""` = back to the planned lift).
 - `data/users/<uid>/sched<week>` → `{ v: { "sched<week>|slots": [session index, -1 rest, -2 skipped] } }`
 - `strava/<YYYY-MM-DD>-<id>` → `{date, type, name, distance_mi, moving_time, pace, avg_hr, url, synced_at}`
 - `meta/sync` → `{at, status, count}`

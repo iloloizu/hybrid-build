@@ -3,6 +3,7 @@ import { saveBar, bindSaveBar } from "./savebar.js";
 import { EX } from "../plan/exercises.js";
 import { KNEE, SWAPS, DAYS, DOW, PHASES, phaseOf, phaseName, dose, FLAGS, dayDate, fmt, iso } from "../plan/plan.js";
 import { STORE, ACTS, SYNC, dirty, persistLocal, sget, sset, flush, setKey, warmKey, schedKey } from "../storage.js";
+import { exFor, extraSets, addSet, removeSet, setSub, similar, totalSets } from "../plan/custom.js";
 import { slots, pushToTomorrow, swapDays, skipDay, warnings } from "../schedule.js";
 import { progress, esc, thumbHTML, CHECK, RUNICON, keep } from "./common.js";
 import { openEx } from "./exercise.js";
@@ -10,6 +11,7 @@ import { openEx } from "./exercise.js";
 /* ---------- plan view ---------- */
 export function renderPlan() {
   const app = document.getElementById("app");
+  app.className = "wrap";
   const a = slots(ui.week), sess = a[ui.dayIdx], d = sess >= 0 ? DAYS[sess] : null, P = PHASES[phaseOf(ui.week)];
   const date = dayDate(ui.week, ui.dayIdx), acts = ACTS[iso(date)] || [];
   let h = `<div class="brand"><span class="mark">HYBRID <b>BUILD</b></span><span class="bib"><i>${String(ui.week).padStart(2, "0")}</i>Week ${ui.week} of 10</span></div>
@@ -67,27 +69,39 @@ export function renderPlan() {
 }
 export function exCard(it, i, sess) {
   const ds = dose(it, ui.week); if (!ds) return "";
-  const e = EX[it.x];
+  const x = exFor(it, ui.week, sess, i), e = EX[x], subbed = x !== it.x;
+  const extra = extraSets(ui.week, sess, i), total = ds.s + extra;
   let all = true, rows = "";
-  for (let s = 0; s < ds.s; s++) {
+  for (let s = 0; s < total; s++) {
     const v = sget(setKey(ui.week, sess, i, s)) || {};
     const prev = ui.week > 1 ? (sget(setKey(ui.week - 1, sess, i, s)) || {}) : {};
     if (!v.d) all = false;
-    rows += `<div class="set${v.d ? " is-done" : ""}"><span class="n">${s + 1}</span>
-      <label class="field"><input inputmode="decimal" aria-label="Set ${s + 1} weight" data-i="${i}" data-s="${s}" data-f="w" value="${esc(v.w)}" placeholder="${esc(prev.w || (it.bw ? "BW" : "—"))}"><span>lb</span></label>
+    rows += `<div class="set${v.d ? " is-done" : ""}${s >= ds.s ? " extra" : ""}"><span class="n">${s + 1}</span>
+      <label class="field"><input inputmode="decimal" aria-label="Set ${s + 1} weight" data-i="${i}" data-s="${s}" data-f="w" value="${esc(v.w)}" placeholder="${esc(prev.w || (it.bw && !subbed ? "BW" : "—"))}"><span>lb</span></label>
       <label class="field"><input inputmode="numeric" aria-label="Set ${s + 1} reps" data-i="${i}" data-s="${s}" data-f="r" value="${esc(v.r)}" placeholder="${esc(ds.r)}"><span>reps</span></label>
       <button class="chk" aria-label="Set ${s + 1} done" aria-pressed="${!!v.d}" data-i="${i}" data-s="${s}" data-done="1">${CHECK}</button></div>`;
   }
-  const sub = [it.tag === "main" ? `<span class="p">Main lift</span>` : it.tag === "pri" ? `<span class="p">Priority</span>` : "", ds.note].filter(Boolean).join(" · ");
-  return `<article class="ex${all ? " done" : ""}"><button class="exhead" data-ex="${it.x}" aria-label="How to do ${esc(e.name)}"><span class="thumb">${thumbHTML(it.x)}</span><span><span class="exname">${e.name}</span>${sub ? `<span class="exsub">${sub}</span>` : ""}</span><span class="dose">${ds.s}×${ds.r}<small>${it.u ? it.u.replace("/", "per ") : "sets × reps"}</small></span></button><div class="sets">${rows}</div></article>`;
+  const sub = [subbed ? `<span class="p">For ${esc(EX[it.x].name)}</span>` : it.tag === "main" ? `<span class="p">Main lift</span>` : it.tag === "pri" ? `<span class="p">Priority</span>` : "", ds.note].filter(Boolean).join(" · ");
+  const open = ui.subOpen === i;
+  const foot = `<div class="exfoot"><button data-addset="${i}" aria-label="Add a set">+ Set</button>${extra ? `<button data-rmset="${i}" aria-label="Remove the last added set">− Set</button>` : ""}<button data-subopen="${i}" aria-pressed="${open}" aria-expanded="${open}">Substitute</button></div>`;
+  return `<article class="ex${all ? " done" : ""}${subbed ? " subbed" : ""}"><button class="exhead" data-ex="${x}" aria-label="How to do ${esc(e.name)}"><span class="thumb">${thumbHTML(x)}</span><span><span class="exname">${e.name}</span>${sub ? `<span class="exsub">${sub}</span>` : ""}</span><span class="dose">${total}×${ds.r}<small>${extra ? `+${extra} extra` : it.u ? it.u.replace("/", "per ") : "sets × reps"}</small></span></button><div class="sets">${rows}</div>${foot}${open ? subSheet(it, i, x) : ""}</article>`;
+}
+// Picker: every exercise, closest matches to the planned lift first.
+function subSheet(it, i, current) {
+  const list = similar(it.x), close = list.filter(r => r.score >= 4), rest = list.filter(r => r.score < 4).sort((a, b) => EX[a.id].name.localeCompare(EX[b.id].name));
+  const row = id => `<button class="subrow" data-subpick="${id}" data-i="${i}" aria-pressed="${id === current}"><span class="thumb">${thumbHTML(id)}</span><span><b>${EX[id].name}</b><small>${esc(EX[id].equip)}</small></span><em>${esc(EX[id].muscles[0])}</em></button>`;
+  return `<div class="subsheet"><div class="lbl">Swap ${esc(EX[it.x].name)} for<em>this week on</em></div>
+    ${current !== it.x ? `<button class="subrow back" data-subpick="${it.x}" data-i="${i}"><span class="thumb">${thumbHTML(it.x)}</span><span><b>Back to ${EX[it.x].name}</b><small>The planned lift</small></span><em>Plan</em></button>` : ""}
+    <div class="sublbl">Closest</div><div class="sublist">${close.map(r => row(r.id)).join("")}</div>
+    <div class="sublbl">Everything else</div><div class="sublist">${rest.map(r => row(r.id)).join("")}</div></div>`;
 }
 export function bindPlan() {
   bindSaveBar();
   const app = document.getElementById("app");
   const sess = slots(ui.week)[ui.dayIdx];
   const on = (sel, fn) => app.querySelectorAll(sel).forEach(b => b.onclick = () => fn(b));
-  on("[data-w]", b => { ui.week = +b.dataset.w; ui.swapOpen = null; ui.actionMode = null; renderPlan(); });
-  on("[data-d]", b => { ui.dayIdx = +b.dataset.d; ui.swapOpen = null; ui.actionMode = null; renderPlan(); });
+  on("[data-w]", b => { ui.week = +b.dataset.w; ui.swapOpen = null; ui.actionMode = null; ui.subOpen = null; renderPlan(); });
+  on("[data-d]", b => { ui.dayIdx = +b.dataset.d; ui.swapOpen = null; ui.actionMode = null; ui.subOpen = null; renderPlan(); });
   on("[data-sw]", b => { ui.swapOpen = ui.swapOpen === b.dataset.sw ? null : b.dataset.sw; keep(renderPlan); });
   on("[data-ex]", b => openEx(b.dataset.ex));
   on("[data-act]", b => { ui.actionMode = ui.actionMode === b.dataset.act ? null : b.dataset.act; keep(renderPlan); });
@@ -102,7 +116,16 @@ export function bindPlan() {
   app.querySelectorAll("input[data-f]").forEach(inp => inp.onchange = () => {
     const i = +inp.dataset.i, s = +inp.dataset.s, f = inp.dataset.f, k = setKey(ui.week, sess, i, s), v = Object.assign({}, sget(k) || {});
     v[f] = inp.value.trim(); sset(k, v);
-    if (f === "w" && v.w) { const ds = dose(DAYS[sess].items[i], ui.week); for (let t = s + 1; t < ds.s; t++) { const kk = setKey(ui.week, sess, i, t), vv = Object.assign({}, sget(kk) || {}); if (!vv.w) { vv.w = v.w; sset(kk, vv); const el = app.querySelector(`input[data-i="${i}"][data-s="${t}"][data-f="w"]`); if (el) el.value = v.w; } } }
+    if (f === "w" && v.w) { const n = totalSets(DAYS[sess].items[i], ui.week, sess, i); for (let t = s + 1; t < n; t++) { const kk = setKey(ui.week, sess, i, t), vv = Object.assign({}, sget(kk) || {}); if (!vv.w) { vv.w = v.w; sset(kk, vv); const el = app.querySelector(`input[data-i="${i}"][data-s="${t}"][data-f="w"]`); if (el) el.value = v.w; } } }
+  });
+  on("[data-addset]", b => { addSet(ui.week, sess, +b.dataset.addset); keep(renderPlan); });
+  on("[data-rmset]", b => { const i = +b.dataset.rmset; sset(setKey(ui.week, sess, i, totalSets(DAYS[sess].items[i], ui.week, sess, i) - 1), null); removeSet(ui.week, sess, i); keep(renderPlan); });
+  on("[data-subopen]", b => { const i = +b.dataset.subopen; ui.subOpen = ui.subOpen === i ? null : i; keep(renderPlan); });
+  on("[data-subpick]", b => {
+    const i = +b.dataset.i, it = DAYS[sess].items[i], id = b.dataset.subpick;
+    setSub(ui.week, sess, i, id, it.x); ui.subOpen = null;
+    ui.toast = id === it.x ? `Back to ${EX[it.x].name}.` : `${EX[id].name} replaces ${EX[it.x].name} from this week on.`;
+    renderPlan(); const a = document.getElementById("app").querySelector(`[data-subopen="${i}"]`); if (a && a.scrollIntoView) a.closest(".ex").scrollIntoView({ block: "center" });
   });
   const c = document.getElementById("clearday");
   if (c) c.onclick = () => { const g = `w${ui.week}s${sess}`; STORE[g] = {}; persistLocal(); dirty.add(g); flush(); renderPlan(); };

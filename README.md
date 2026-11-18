@@ -38,7 +38,8 @@ Open the Pages URL in Safari, unlock it, then Share → Add to Home Screen. Afte
 | Path | What's in it |
 | --- | --- |
 | `src/plan/plan.js` | Sessions (`DAYS`), phases, `MAIN`/`KOT` tables, `dose()`, swaps, dates |
-| `src/plan/exercises.js` | Exercise library `EX`: poses, props, muscles, steps, cues, mistakes |
+| `src/plan/exercises.js` | Exercise library `EX`: poses, props, muscles, steps, cues, mistakes, equipment alternates |
+| `src/plan/custom.js` | Your per-session changes: extra sets, substitutes, `similar()` ranking |
 | `src/figure/engine.js` | Mannequin engine: `solve`, `figInner`, `tweenJ`, `clipSVG`, `bodyMap` |
 | `src/storage.js` | Local store (`hb4`), persistence request, backup/restore, artifact db sync (`connect`) |
 | `src/schedule.js` | `slots`, `pushToTomorrow`, `swapDays`, `skipDay`, `warnings` |

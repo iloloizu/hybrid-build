@@ -23,6 +23,7 @@ function renderEx() {
   const stills = photo
     ? `<figure class="still"><img src="img/${e.photo}/0.jpg" alt="Start"><figcaption><b>01</b>Start</figcaption></figure><figure class="still"><img src="img/${e.photo}/1.jpg" alt="Finish"><figcaption><b>02</b>Finish</figcaption></figure>`
     : `<figure class="still">${figure(JA, ex, { label: "start" })}<figcaption><b>01</b>Start</figcaption></figure><figure class="still">${figure(JB, Object.assign({}, ex, { _t: e.B.t }), { label: "finish" })}<figcaption><b>02</b>Finish</figcaption></figure>`;
+  document.getElementById("app").className = "wrap exview";
   document.getElementById("app").innerHTML = `
     <div class="exbar"><button class="back" id="back"><b>‹</b> Back to ${s >= 0 ? DAYS[s].name : "plan"}</button></div>
     <div class="dtitle"><h2>${e.name}</h2><div class="mus">${e.muscles.map((m, i) => `<span class="${i === 0 ? "hl" : ""}">${m}</span>`).join("")}</div></div>
