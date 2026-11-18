@@ -1,9 +1,10 @@
 /* ---------- storage: local copy always, synced to your private db space when available ---------- */
+import { store } from "./platform/index.js";
 export let STORE = {};
-try { STORE = JSON.parse(localStorage.getItem("hb4") || "{}") || {}; } catch (e) {}
+try { STORE = JSON.parse(store.get("hb4") || "{}") || {}; } catch (e) {}
 export let DB = null, UID = null, ACTS = {}, SYNC = null;
 export const dirty = new Set();
-export function persistLocal() { try { localStorage.setItem("hb4", JSON.stringify(STORE)); } catch (e) {} }
+export function persistLocal() { store.set("hb4", JSON.stringify(STORE)); }
 export const docName = k => k.split("|")[0]; // group keys into docs: "w3s2|..." -> doc w3s2
 export function sget(k) { const g = STORE[docName(k)]; return g ? g[k] : undefined; }
 export function sset(k, v) {

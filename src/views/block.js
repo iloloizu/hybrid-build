@@ -11,6 +11,7 @@ import { openSheet } from "../ui/sheet.js";
 import { todayWD } from "./today.js";
 import { saveBar, bindSaveBar } from "./savebar.js";
 import { rerender } from "./app.js";
+import { twoTap } from "../ui/confirm.js";
 
 /* ---------- block screen: weeks by phase, other blocks, your data ---------- */
 export function weekProgress(W) {
@@ -40,7 +41,7 @@ export function renderBlock() {
   app.querySelectorAll("[data-b]").forEach(b => b.onclick = () => { ui.b = +b.dataset.b; ui.week = 1; rerender(); });
   document.getElementById("newblock").onclick = newBlockSheet;
   const del = document.getElementById("delblock");
-  if (del) del.onclick = () => { if (!confirm(`Delete Block ${B.id}? Sets you logged in it stay in your backup data but won't show.`)) return; removeBlock(B.id); ui.b = 1; toast(`Block ${B.id} deleted.`); rerender(); };
+  twoTap(del, `Tap again to delete Block ${B.id}`, () => { removeBlock(B.id); ui.b = 1; toast(`Block ${B.id} deleted.`); rerender(); });
   bindSaveBar();
 }
 
@@ -53,7 +54,6 @@ function newBlockSheet() {
       <button class="bigbtn" id="bgo">Start block</button>`;
     body.querySelector("#bgo").onclick = () => {
       const v = body.querySelector("#bstart").value; if (!v) return;
-      if (parseISO(v).getDay() !== 1 && !confirm("That's not a Monday. Weeks will run from that weekday. Start anyway?")) return;
       const id = startBlock(v, B0().plan || "hybrid"); ui.b = id; ui.week = 1; api.close(); toast(`Block ${id} starts ${fmt(parseISO(v))}.`); setTimeout(() => go("#/block", { replace: true }), 0);
     };
   } });

@@ -6,7 +6,7 @@ let current = null;
 interceptPop(() => { if (!current) return false; teardown(); return true; });
 
 // render(body) fills the sheet; call api.refresh() to redraw it in place.
-export function openSheet({ title, render, tall = false }) {
+export function openSheet({ title, render, tall = false, onClose }) {
   if (current) teardown();
   const root = document.getElementById("sheets");
   root.innerHTML = `<div class="scrim" data-close></div><section class="sheet-panel${tall ? " tall" : ""}" role="dialog" aria-modal="true" aria-label="${title}">
@@ -15,7 +15,7 @@ export function openSheet({ title, render, tall = false }) {
     <div class="sheet-body"></div></section>`;
   const body = root.querySelector(".sheet-body");
   const api = { refresh: () => render(body, api), close: () => closeSheet() };
-  current = { root, api, prevFocus: document.activeElement };
+  current = { root, api, prevFocus: document.activeElement, onClose };
   root.querySelectorAll("[data-close]").forEach(b => b.onclick = () => closeSheet());
   document.body.classList.add("locked");
   pushOverlay();
@@ -28,7 +28,8 @@ export function openSheet({ title, render, tall = false }) {
 export const sheetOpen = () => !!current;
 export function closeSheet() { if (current) history.back(); }
 function teardown() {
-  const { root, prevFocus } = current; current = null;
+  const { root, prevFocus, onClose } = current; current = null;
+  if (onClose) setTimeout(onClose, 0);
   root.classList.remove("open"); document.body.classList.remove("locked");
   setTimeout(() => { if (!current) root.innerHTML = ""; }, 220);
   if (prevFocus && prevFocus.focus && document.contains(prevFocus)) prevFocus.focus({ preventScroll: true });

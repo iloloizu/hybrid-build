@@ -1,4 +1,5 @@
 import { EX } from "../plan/exercises.js";
+import { muscleKeys } from "../figure/engine.js";
 import { DAYS, PHASES, phaseOf, phaseName } from "../plan/plan.js";
 import { sget, sset } from "../storage.js";
 import { SIMON, AWO, AI } from "./data.js";
@@ -40,6 +41,24 @@ function parseLines(lines, nWeeks, plan) {
     return { x, label: name, ds, tag: f.includes("main") ? "main" : undefined, core: f.includes("core"), cardio: f.includes("cardio"), optional: f.includes("opt"), bw: f.includes("cardio") || f.includes("core") ? 1 : undefined };
   });
 }
+// Name a session from what it trains when the plan doesn't: "Chest + Triceps", "Legs".
+const GROUP = { chest: "Chest", delt: "Shoulders", reardelt: "Shoulders", triceps: "Triceps", biceps: "Biceps", forearm: "Biceps", lats: "Back", upperback: "Back", traps: "Back", lowerback: "Back", quads: "Legs", glutes: "Legs", hams: "Legs", calves: "Legs", tib: "Legs", abs: "Core", hipflex: "Core" };
+export function autoName(items) {
+  const score = {};
+  items.filter(it => !it.cardio && EX[it.x]).forEach(it => { const [pri] = muscleKeys(EX[it.x].muscles); const w = it.tag === "main" ? 2 : 1; new Set([...pri].map(k => GROUP[k]).filter(Boolean)).forEach(g => { score[g] = (score[g] || 0) + w; }); });
+  const top = Object.entries(score).sort((a, b) => b[1] - a[1]);
+  if (!top.length) return items.some(it => it.cardio) ? "Cardio" : "Session";
+  if (top[0][0] === "Legs" && (!top[1] || top[1][1] < top[0][1] / 2)) return "Legs";
+  const two = top.slice(0, 2).filter(([, v], i) => i === 0 || v >= top[0][1] / 2).map(([g]) => g);
+  return two.join(" + ");
+}
+// Pills for a session: estimated minutes, focus, intensity (when the plan gives a % of max).
+export function sessionMeta(s) {
+  if (!s || !s.items) return {};
+  let min = 0; s.items.forEach(it => { const d = it.dose || { s: 3, r: "10" }; const t = String(d.r).match(/(\d+)\s*min/); min += t ? +t[1] : d.s * (it.tag === "main" ? 3.5 : 2.5); });
+  const pct = s.items.map(it => it.tag === "main" && it.dose && String(it.dose.note).match(/(\d+)%/)).find(Boolean);
+  return { mins: Math.max(10, Math.round(min / 5) * 5), focus: autoName(s.items), intensity: pct ? `${pct[1]}% of max` : "" };
+}
 // Normalize a data plan: each phase gets 7 sessions (null = rest).
 function build(plan) {
   if (plan.hybrid) return plan;
@@ -50,7 +69,7 @@ function build(plan) {
       if (!day) return { name: "Rest", kind: "rest", items: [], rank: 9 };
       const items = parseLines(day.lines || "", n, plan);
       const lift = items.some(i => !i.cardio);
-      return { name: day.name, kind: lift ? "lift" : "cardio", items, rank: d, swaps: [], mins: day.mins, run: day.run, dow: d };
+      return { name: day.name || autoName(items), kind: lift ? "lift" : "cardio", items, rank: d, swaps: [], mins: day.mins, run: day.run, dow: d };
     });
     return Object.assign({}, ph, { days });
   });
@@ -91,7 +110,7 @@ export function importPlan(text) {
   if (!p || !p.name || !Array.isArray(p.phases) || !p.phases.length) throw new Error("A plan needs a name and phases");
   p.id = "c-" + slug(p.name); p.weeks = +p.weeks || Math.max(...p.phases.map(ph => ph.to || 1)); p.by = p.by || "Imported";
   p.short = p.short || p.name.split(" ")[0];
-  p.phases.forEach(ph => { ph.days = (ph.days || []).slice(0, 7); while (ph.days.length < 7) ph.days.push(null); ph.days = ph.days.map(d => d && (d.lines || (Array.isArray(d.exercises) ? d.exercises.join("\n") : "")) ? { name: d.name || "Session", lines: d.lines || d.exercises.join("\n") } : null); });
+  p.phases.forEach(ph => { ph.days = (ph.days || []).slice(0, 7); while (ph.days.length < 7) ph.days.push(null); ph.days = ph.days.map(d => d && (d.lines || (Array.isArray(d.exercises) ? d.exercises.join("\n") : "")) ? { name: d.name || "", lines: d.lines || d.exercises.join("\n") } : null); });
   build(p); // throws early on bad data
   sset("plans|custom", customPlans().filter(x => x.id !== p.id).concat([p]));
   return p;
