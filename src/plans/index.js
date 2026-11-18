@@ -52,12 +52,42 @@ export function autoName(items) {
   const two = top.slice(0, 2).filter(([, v], i) => i === 0 || v >= top[0][1] / 2).map(([g]) => g);
   return two.join(" + ");
 }
+// Session type from the main lift and where most sets go: Push, Pull, Upper body, Lower body,
+// Full body, Accessories, Plyometrics, Cardio, Core (+ plyos when jumps feature).
+export const SESSION_TYPES = ["Push", "Pull", "Upper body", "Lower body", "Full body", "Accessories", "Plyometrics", "Cardio", "Core"];
+export function movementOf(it) {
+  const e = EX[it.x] || {}, n = `${it.label || ""} ${e.name || ""}`.toLowerCase();
+  if (it.cardio || /treadmill|walk\b|cycling|bike|stair|rowing|run\b/.test(n)) return { p: "cardio" };
+  if (it.core || /crunch|v-up|plank|leg raise|leg lift|situp|sit-up|russian|ab roll|ab circuit|ab wheel|hyper series|toe touch/.test(n)) return { p: "core" };
+  if (/jump|bound|hop|pogo|plyo|kettlebell swing/.test(n)) return { p: "plyo" };
+  if (/squat|deadlift|\brdl\b|romanian|lunge|step-up|leg press|leg curl|leg ext|calf|soleus|hip thrust|nordic|sled|tib|hinge|clean|thigh pull|hyper|jefferson|couch|carry/.test(n)) return { p: "lower", iso: /leg curl|leg ext|calf|soleus|tib|couch/.test(n) };
+  if (/\brows?\b|\bpull|\bchin|\bcurl|rear delt|reverse pec|\bshrug|face pull/.test(n)) return { p: "pull", iso: /\bcurl|rear delt|reverse pec|\bshrug|face pull/.test(n) };
+  if (/press|bench|push|dip|fly|pec|extension|skull|tricep|crusher|raise/.test(n)) return { p: "push", iso: /fly|pec|extension|skull|tricep|crusher|raise|pushdown/.test(n) };
+  return { p: "other", iso: true };
+}
+export function sessionType(items, given) {
+  if (given && SESSION_TYPES.includes(given)) return given;
+  const sets = it => (it.dose || (it.ds && it.ds[0]) || { s: 3 }).s || 1;
+  const tally = { push: 0, pull: 0, lower: 0, plyo: 0, core: 0, cardio: 0, other: 0 }; let iso = 0, strength = 0;
+  items.forEach(it => { const m = movementOf(it), s = sets(it); tally[m.p] += s; if (["push", "pull", "lower", "other"].includes(m.p)) { strength += s; if (m.iso) iso += s; } });
+  if (!strength) return tally.plyo ? "Plyometrics" : tally.cardio >= tally.core ? (tally.cardio ? "Cardio" : "Core") : "Core";
+  const main = items.find(it => it.tag === "main") || items.find(it => !["core", "cardio", "plyo"].includes(movementOf(it).p));
+  const mp = main ? movementOf(main) : { p: "other" }, upper = tally.push + tally.pull, lower = tally.lower;
+  let t;
+  if (lower >= strength * 0.35 && upper >= strength * 0.35) t = "Full body";
+  else if (lower >= strength * 0.5 || (mp.p === "lower" && lower >= strength * 0.4)) t = "Lower body";
+  else if (!items.some(it => it.tag === "main") && iso >= strength * 0.7) t = "Accessories";
+  else if (tally.push >= upper * 0.7 || (mp.p === "push" && tally.push >= upper * 0.55)) t = "Push";
+  else if (tally.pull >= upper * 0.7 || (mp.p === "pull" && tally.pull >= upper * 0.55)) t = "Pull";
+  else t = "Upper body";
+  return tally.plyo >= 2 ? `${t} + plyos` : t;
+}
 // Pills for a session: estimated minutes, focus, intensity (when the plan gives a % of max).
 export function sessionMeta(s) {
   if (!s || !s.items) return {};
   let min = 0; s.items.forEach(it => { const d = it.dose || { s: 3, r: "10" }; const t = String(d.r).match(/(\d+)\s*min/); min += t ? +t[1] : d.s * (it.tag === "main" ? 3.5 : 2.5); });
   const pct = s.items.map(it => it.tag === "main" && it.dose && String(it.dose.note).match(/(\d+)%/)).find(Boolean);
-  return { mins: Math.max(10, Math.round(min / 5) * 5), focus: autoName(s.items), intensity: pct ? `${pct[1]}% of max` : "" };
+  return { mins: Math.max(10, Math.round(min / 5) * 5), focus: sessionType(s.items, s.type), intensity: pct ? `${pct[1]}% of max` : "" };
 }
 // Normalize a data plan: each phase gets 7 sessions (null = rest).
 function build(plan) {
@@ -69,7 +99,7 @@ function build(plan) {
       if (!day) return { name: "Rest", kind: "rest", items: [], rank: 9 };
       const items = parseLines(day.lines || "", n, plan);
       const lift = items.some(i => !i.cardio);
-      return { name: day.name || autoName(items), kind: lift ? "lift" : "cardio", items, rank: d, swaps: [], mins: day.mins, run: day.run, dow: d };
+      return { name: day.name || sessionType(items, day.type), type: day.type, kind: lift ? "lift" : "cardio", items, rank: d, swaps: [], mins: day.mins, run: day.run, dow: d };
     });
     return Object.assign({}, ph, { days });
   });
@@ -131,7 +161,8 @@ function cleanPlan(src) {
     const days = (Array.isArray(ph && ph.days) ? ph.days : []).slice(0, 7).map(d => {
       if (!d || typeof d !== "object") return null;
       const lines = (typeof d.lines === "string" ? d.lines.split("\n") : Array.isArray(d.exercises) ? d.exercises : []).slice(0, LIMIT.lines).map(cleanLine).filter(Boolean);
-      return lines.length ? { name: cleanText(d.name, LIMIT.day), lines: lines.join("\n") } : null;
+      const type = SESSION_TYPES.find(t => t === cleanText(d.type, 20)) || undefined;
+      return lines.length ? { name: cleanText(d.name, LIMIT.day), type, lines: lines.join("\n") } : null;
     });
     while (days.length < 7) days.push(null);
     return { from, to, name: cleanText(ph && ph.name, LIMIT.day) || `Phase ${k + 1}`, rule: cleanText(ph && ph.rule, LIMIT.rule), days };

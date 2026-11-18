@@ -38,7 +38,7 @@ export function renderWeek(w) {
       const date = dayDate(W, i), [n, tot] = progress(W, s), mine = getRun(iso(date)), ran = (ACTS[iso(date)] || []).length || (mine && (mine.mi || mine.min)), today = here && t.w === w && t.d === i;
       const sd = s >= 0 ? S[s] : null, run = sd && sd.kind === "run", off = !sd, flag = flagFor(date);
       const name = sd ? sd.name : s === -2 ? "Skipped" : "Rest";
-      const info = sd ? (run ? "Long run" : sd.mins ? `${sd.mins} min · ${sd.run === "Rest day" ? "No run" : sd.run}` : `~${sessionMeta(sd).mins} min · ${sessionMeta(sd).focus}`) : "";
+      const info = sd ? (run ? "Long run" : sd.mins ? `${sessionMeta(sd).focus} · ${sd.mins} min · ${sd.run === "Rest day" ? "No run" : sd.run}` : `${sessionMeta(sd).focus === sd.name ? "" : sessionMeta(sd).focus + " · "}~${sessionMeta(sd).mins} min`) : "";
       const fin = isFinished(iso(date)), state = fin ? "✓" : run ? (ran ? "✓" : "") : tot ? (n === tot ? "✓" : n ? `${n}/${tot}` : "") : "";
       return `<button class="dayrow${today ? " today" : ""}${off ? " off" : ""}${run ? " run" : ""}${(n && n === tot) || fin ? " done" : ""}" data-day="${i}">
         <span class="dd"><small>${dowName(i)}</small><b>${date.getDate()}</b></span>
