@@ -11,6 +11,7 @@ import { toast } from "../ui/toast.js";
 import { openSheet } from "../ui/sheet.js";
 import { rerender } from "./app.js";
 import { twoTap } from "../ui/confirm.js";
+import { aiSample, aiLimits, aiImport, aiErrorCopy } from "../plans/ai-import.js";
 
 /* ---------- explore: browse plans, try one as a new block ---------- */
 const activePlan = () => { const f = findDate(); const b = f && blocks().find(x => x.id === f.b); return b ? (b.plan || "hybrid") : null; };
@@ -28,13 +29,17 @@ export function renderExplore() {
     <span class="pc-top"><span class="pc-by">${esc(p.by)}</span>${p.id === act ? `<span class="pc-badge">Running now</span>` : ""}</span>
     <b class="pc-name">${esc(p.name)}</b><span class="pc-blurb">${esc(p.blurb || "")}</span>
     <span class="pc-stats"><span><b>${st.weeks}</b> wks</span><span><b>${st.days}</b> days/wk</span><span><b>${st.ex}</b> exercises</span></span></button>`; }).join("")}</div>`;
-  h += `<section class="importbox"><div><b>Add a plan</b><span>Import a plan file (.json) in the same format as these.</span></div>
-    <button class="bigbtn ghost" id="imp">${ICON.upload}<span>Import plan</span></button><input type="file" id="impfile" accept="application/json,.json" hidden></section>`;
+  h += `<section class="importbox"><div><b>Add a plan</b><span>Upload a PDF or screenshots of any program and Claude turns it into a plan you can try.</span></div>
+    <button class="bigbtn" id="aiup">${ICON.upload}<span>Upload PDF or screenshots</span></button>
+    <div class="btnrow"><button class="bigbtn ghost" id="paste">Paste plan</button><button class="bigbtn ghost" id="imp">Import file</button></div>
+    <input type="file" id="impfile" accept="application/json,.json" hidden></section>`;
   app.innerHTML = h;
   app.querySelectorAll("[data-plan]").forEach(b => b.onclick = () => go(`#/plan/${encodeURIComponent(b.dataset.plan)}`));
   const f = document.getElementById("impfile");
   document.getElementById("imp").onclick = () => f.click();
-  f.onchange = async () => { const file = f.files && f.files[0]; if (!file) return; try { const p = importPlan(await file.text()); toast(`${p.name} added.`); } catch (e) { toast(e.message + ". Nothing added."); } f.value = ""; rerender(); };
+  f.onchange = async () => { const file = f.files && f.files[0]; if (!file) return; try { const p = importPlan(await file.text()); toast(`${p.name} added.`); go(`#/plan/${encodeURIComponent(p.id)}`); } catch (e) { toast(e.message + ". Nothing added."); rerender(); } f.value = ""; };
+  document.getElementById("paste").onclick = pasteSheet;
+  document.getElementById("aiup").onclick = uploadSheet;
 }
 
 let pageWeek = {};
@@ -52,13 +57,58 @@ export function renderPlanPage(id) {
     if (!s.items.length) return `<div class="pday"><span class="pd-dow">${DOW[d]}</span><b>${esc(s.name)}</b><span class="pd-sub">${s.kind === "run" ? "Long run" : ""}</span></div>`;
     return `<div class="pday"><span class="pd-dow">${DOW[d]}</span><b>${esc(s.name)}</b><ul>${s.items.map(it => { const ds = dose(it, w); if (!ds) return ""; const e = EX[it.x]; return `<li><button data-ex="${it.x}"><span class="thumb">${thumbHTML(it.x)}</span><span class="pi-name">${esc(it.label || e.name)}${it.optional ? ` <em>optional</em>` : ""}</span><span class="pi-dose">${ds.s}×${esc(ds.r)}${ds.note ? `<small>${esc(ds.note)}</small>` : ""}</span></button></li>`; }).join("")}</ul></div>`;
   }).join("")}</div>`;
-  h += `<div class="trybar"><button class="bigbtn" id="tryplan">${act ? "Start it again" : "Try this plan"}</button>${customPlans().some(p => p.id === id) ? `<button class="textbtn" id="rmplan">Remove this plan</button>` : ""}</div>`;
+  h += `<div class="trybar"><button class="bigbtn" id="tryplan">${act ? "Start it again" : "Try this plan"}</button>${customPlans().some(p => p.id === id) ? `<div class="btnrow"><button class="textbtn" id="copyplan">Copy plan</button><button class="textbtn" id="rmplan">Remove this plan</button></div>` : ""}</div>`;
   app.innerHTML = h;
   app.querySelectorAll("[data-pw]").forEach(b => b.onclick = () => { pageWeek[id] = +b.dataset.pw; rerender(); });
   app.querySelectorAll("[data-ex]").forEach(b => b.onclick = () => go(`#/ex/${b.dataset.ex}`));
   document.getElementById("tb-back").onclick = () => back("#/explore");
   document.getElementById("tryplan").onclick = () => trySheet(P);
+  const cp = document.getElementById("copyplan");
+  if (cp) cp.onclick = async () => { const raw = JSON.stringify(customPlans().find(p => p.id === id)); try { await navigator.clipboard.writeText(raw); toast("Plan copied. Paste it into Hybrid Build on another device."); } catch (e) { pasteSheet(raw); } };
   twoTap(document.getElementById("rmplan"), "Tap again to remove this plan", () => { removePlan(id); toast("Plan removed."); back("#/explore"); });
+}
+
+// Paste a plan (or show one to copy by hand when the clipboard is blocked).
+function pasteSheet(prefill) {
+  const show = typeof prefill === "string";
+  openSheet({ title: show ? "Copy this plan" : "Paste a plan", render: (body, api) => {
+    body.innerHTML = `<div class="optnote">${show ? "Select all and copy, then paste it into Hybrid Build on your other device." : "Paste a plan copied from Hybrid Build (Copy plan on an imported plan)."}</div>
+      <textarea id="planjson" class="plantext" spellcheck="false" ${show ? "readonly" : 'placeholder="{ &quot;name&quot;: …"'}>${show ? esc(prefill) : ""}</textarea>
+      ${show ? "" : `<button class="bigbtn" id="pastego">Add plan</button>`}`;
+    const ta = body.querySelector("#planjson"); if (show) { ta.focus(); ta.select(); return; }
+    body.querySelector("#pastego").onclick = () => { try { const p = importPlan(ta.value); api.close(); toast(`${p.name} added.`); setTimeout(() => go(`#/plan/${encodeURIComponent(p.id)}`), 0); } catch (e) { toast(e.message + ". Nothing added."); } };
+  } });
+}
+
+// Upload PDFs / screenshots → Claude → a new plan (inside the Claude app).
+async function uploadSheet() {
+  const sample = await aiSample(), lim = sample ? await aiLimits() : null;
+  if (!sample) {
+    openSheet({ title: "Upload a plan", render: body => {
+      body.innerHTML = `<div class="optnote">Reading PDFs and screenshots uses Claude, which works when Hybrid Build is open inside the Claude app (your preview link). Upload there, tap <b>Copy plan</b>, then <b>Paste plan</b> here.</div><div class="optnote">No API key is stored in this app.</div>`;
+    } });
+    return;
+  }
+  let ctl = null, busy = false;
+  openSheet({ title: "Upload a plan", tall: true, render: (body, api) => {
+    body.innerHTML = `<div class="optnote">PDFs, screenshots or photos of a program. Claude reads them on your Claude plan and builds a plan you can review before trying it.${lim && lim.images ? ` Up to ${lim.images.maxCount} images per upload.` : " This view can read PDF text but not images."}</div>
+      <label class="dropzone" for="aifiles">${ICON.upload}<b>Choose files</b><span id="aipicked">PDF, PNG, JPG</span></label>
+      <input type="file" id="aifiles" multiple accept="application/pdf,.pdf,image/*" hidden>
+      <label class="hintfield"><span>Anything Claude should know?</span><textarea id="aihint" rows="2" placeholder="e.g. Day 1 is Monday. It's a 6-week program."></textarea></label>
+      <div class="aistatus" id="aistatus" role="status" aria-live="polite"></div>
+      <div class="btnrow"><button class="bigbtn ghost" id="aistop" disabled>Stop</button><button class="bigbtn" id="aigo" disabled>Build plan</button></div>`;
+    const input = body.querySelector("#aifiles"), go1 = body.querySelector("#aigo"), stop = body.querySelector("#aistop"), st = body.querySelector("#aistatus");
+    input.onchange = () => { const n = input.files.length; body.querySelector("#aipicked").textContent = n ? [...input.files].map(f => f.name).join(", ") : "PDF, PNG, JPG"; go1.disabled = !n; };
+    stop.onclick = () => ctl && ctl.abort();
+    go1.onclick = async () => {
+      if (busy) return; busy = true; go1.disabled = true; stop.disabled = false; ctl = new AbortController();
+      st.textContent = "Getting started…";
+      try {
+        const p = await aiImport([...input.files], { hint: body.querySelector("#aihint").value.trim(), signal: ctl.signal, onStep: t => { st.textContent = t; } });
+        api.close(); toast(`${p.name} is ready. Check it, then try it.`); setTimeout(() => go(`#/plan/${encodeURIComponent(p.id)}`), 0);
+      } catch (e) { st.textContent = aiErrorCopy(e); busy = false; go1.disabled = false; stop.disabled = true; }
+    };
+  } });
 }
 
 function trySheet(P) {
