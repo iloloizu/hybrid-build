@@ -3,7 +3,7 @@ import { EX } from "../plan/exercises.js";
 import { KNEE, SWAPS, DAYS, DOW, PHASES, phaseOf, phaseName, dose, flagFor, fmt, iso } from "../plan/plan.js";
 import { weekRef, prevRef, weekLabel, weeksOf, blockById, dayDate } from "../plan/blocks.js";
 import { STORE, ACTS, SYNC, dirty, persistLocal, sget, sset, flush, setKey, warmKey, schedKey } from "../storage.js";
-import { exFor, extraSets, addSet, removeSet, setSub, similar, totalSets, lastLogs } from "../plan/custom.js";
+import { exFor, extraSets, addSet, removeSet, setSub, similar, totalSets, lastLogs, itemsFor, itemAt, addExercise, removeExercise, ADD0 } from "../plan/custom.js";
 import { slots, pushToTomorrow, pushPlan, swapDays, skipDay } from "../schedule.js";
 import { getRun, setRun, pace } from "../plan/runs.js";
 import { progress, esc, thumbHTML, CHECK, keep } from "./common.js";
@@ -78,7 +78,8 @@ export function renderDay(w, d, isTodayTab) {
       if (cnt) h += `<div class="ss"><div class="ss-tag">${g0 === 3 ? "Arm finisher" : "Superset"} · no rest between</div>${g}</div>`;
     } else { const c = exCard(it, i, sess); if (c) h += c; i++; }
   }
-  h += `</div>`;
+  itemsFor(W, sess).filter(x => x.it.added).forEach(({ it, i }) => { h += exCard(it, i, sess); });
+  h += `</div><button class="bigbtn ghost" id="addex">${ICON.plus}<span>Add exercise</span></button>`;
   h += n === tot && tot ? `<div class="donebanner">Session done. ${n} sets.</div>` : "";
   h += `<button class="bigbtn ghost" id="shorttime">${ICON.timer}<span>Short on time?</span></button>`;
   app.innerHTML = h; bindDay(sess); keepAwake(true);
@@ -99,13 +100,14 @@ export function exCard(it, i, sess) {
       <label class="field"><input inputmode="numeric" enterkeyhint="${s + 1 < total ? "next" : "done"}" aria-label="Set ${s + 1} reps" data-i="${i}" data-s="${s}" data-f="r" value="${esc(v.r)}" placeholder="${esc(ds.r)}"><span>reps</span></label>
       <button class="chk" aria-label="Set ${s + 1} done" aria-pressed="${!!v.d}" data-i="${i}" data-s="${s}" data-done="1">${CHECK}</button></div>`;
   }
-  const sub = [subbed ? `<span class="p">For ${esc(EX[it.x].name)}</span>` : it.tag === "main" ? `<span class="p">Main lift</span>` : it.tag === "pri" ? `<span class="p">Priority</span>` : "", ds.note].filter(Boolean).join(" · ");
-  const foot = `<div class="exfoot"><button class="ib" data-addset="${i}" aria-label="Add a set" title="Add a set">${ICON.plus}</button>${extra ? `<button class="ib" data-rmset="${i}" aria-label="Remove the last added set" title="Remove a set">${ICON.minus}</button>` : ""}<button class="ib" data-subopen="${i}" aria-label="Substitute ${esc(e.name)}" title="Substitute">${ICON.swap}</button></div>`;
+  const sub = [it.added ? `<span class="p">Added</span>` : subbed ? `<span class="p">For ${esc(EX[it.x].name)}</span>` : it.tag === "main" ? `<span class="p">Main lift</span>` : it.tag === "pri" ? `<span class="p">Priority</span>` : "", ds.note].filter(Boolean).join(" · ");
+  const foot = `<div class="exfoot"><button class="ib" data-addset="${i}" aria-label="Add a set" title="Add a set">${ICON.plus}</button>${extra ? `<button class="ib" data-rmset="${i}" aria-label="Remove the last added set" title="Remove a set">${ICON.minus}</button>` : ""}${it.added ? `<button class="ib" data-rmex="${it.k}" aria-label="Remove ${esc(e.name)}" title="Remove">${ICON.close}</button>` : `<button class="ib" data-subopen="${i}" aria-label="Substitute ${esc(e.name)}" title="Substitute">${ICON.swap}</button>`}</div>`;
   return `<article class="ex${all ? " done" : ""}${subbed ? " subbed" : ""}" id="ex-${i}"><button class="exhead" data-ex="${x}" aria-label="How to do ${esc(e.name)}"><span class="thumb">${thumbHTML(x)}</span><span><span class="exname">${e.name}</span>${sub ? `<span class="exsub">${sub}</span>` : ""}</span><span class="dose">${total}×${ds.r}<small>${extra ? `+${extra} extra` : it.u ? it.u.replace("/", "per ") : "sets × reps"}</small></span></button><div class="sets">${rows}</div>${foot}</article>`;
 }
 
 // Rest after a checked set: none mid-superset (go straight to the partner exercise).
 function restFor(items, i) {
+  if (i >= ADD0) return 75;
   const it = items[i], nx = items[i + 1];
   if (it.ss && nx && nx.ss === it.ss) return 0;
   return it.tag === "main" ? 120 : 75;
@@ -129,14 +131,14 @@ function bindDay(sess) {
   on("[data-done]", b => {
     const i = +b.dataset.i, s = +b.dataset.s, k = setKey(w, sess, i, s), v = Object.assign({}, sget(k) || {});
     const items = DAYS[sess].items;
-    if (!v.d) { if (!v.r) v.r = dose(items[i], W.pw).r; const wi = app.querySelector(`input[data-i="${i}"][data-s="${s}"][data-f="w"]`); if (!v.w && wi && wi.value.trim()) v.w = wi.value.trim(); v.d = 1; buzz(); const r = restFor(items, i); if (r) startRest(r); } else v.d = 0;
+    if (!v.d) { if (!v.r) v.r = dose(itemAt(W, sess, i), W.pw).r; const wi = app.querySelector(`input[data-i="${i}"][data-s="${s}"][data-f="w"]`); if (!v.w && wi && wi.value.trim()) v.w = wi.value.trim(); v.d = 1; buzz(); const r = restFor(items, i); if (r) startRest(r); } else v.d = 0;
     sset(k, v); keep(rerender);
   });
   app.querySelectorAll("input[data-f]").forEach(inp => {
     inp.onchange = () => {
       const i = +inp.dataset.i, s = +inp.dataset.s, f = inp.dataset.f, k = setKey(w, sess, i, s), v = Object.assign({}, sget(k) || {});
       v[f] = inp.value.trim(); sset(k, v);
-      if (f === "w" && v.w) { const n = totalSets(DAYS[sess].items[i], w, sess, i); for (let t = s + 1; t < n; t++) { const kk = setKey(w, sess, i, t), vv = Object.assign({}, sget(kk) || {}); if (!vv.w) { vv.w = v.w; sset(kk, vv); const el = app.querySelector(`input[data-i="${i}"][data-s="${t}"][data-f="w"]`); if (el) el.value = v.w; } } }
+      if (f === "w" && v.w) { const n = totalSets(itemAt(W, sess, i), w, sess, i); for (let t = s + 1; t < n; t++) { const kk = setKey(w, sess, i, t), vv = Object.assign({}, sget(kk) || {}); if (!vv.w) { vv.w = v.w; sset(kk, vv); const el = app.querySelector(`input[data-i="${i}"][data-s="${t}"][data-f="w"]`); if (el) el.value = v.w; } } }
     };
     // Enter moves weight → reps → next set's weight.
     inp.onkeydown = e => {
@@ -146,11 +148,31 @@ function bindDay(sess) {
     };
   });
   on("[data-addset]", b => { addSet(w, sess, +b.dataset.addset); keep(rerender); });
-  on("[data-rmset]", b => { const i = +b.dataset.rmset; sset(setKey(w, sess, i, totalSets(DAYS[sess].items[i], w, sess, i) - 1), null); removeSet(w, sess, i); keep(rerender); });
+  on("[data-rmset]", b => { const i = +b.dataset.rmset; sset(setKey(w, sess, i, totalSets(itemAt(W, sess, i), w, sess, i) - 1), null); removeSet(w, sess, i); keep(rerender); });
   on("[data-subopen]", b => subSheet(sess, +b.dataset.subopen));
+  on("[data-rmex]", b => { const k = +b.dataset.rmex, name = EX[itemAt(W, sess, ADD0 + k).x].name; removeExercise(W, sess, k); toast(`${name} removed.`); keep(rerender); });
+  const ax = document.getElementById("addex"); if (ax) ax.onclick = () => addSheet(sess);
 }
 
 /* ---------- sheets ---------- */
+// Add any library exercise to the end of today's session.
+function addSheet(sess) {
+  const w = weekRef(ui.b, ui.week), here = new Set(itemsFor(w, sess).map(x => exFor(x.it, w, sess, x.i)));
+  let q = "";
+  openSheet({ title: "Add exercise", tall: true, render: (body, api) => {
+    if (!body.firstChild) {
+      body.innerHTML = `<label class="search">${ICON.search}<input type="search" placeholder="Search name, muscle, equipment" aria-label="Search exercises" enterkeyhint="search"></label><div class="subnote">Added to this session only</div><div class="subres"></div>`;
+      body.querySelector("input").oninput = e => { q = e.target.value.trim().toLowerCase(); api.refresh(); };
+    }
+    const ids = Object.keys(EX).filter(id => !q || (EX[id].name + " " + EX[id].muscles.join(" ") + " " + EX[id].equip).toLowerCase().includes(q)).sort((a, b) => EX[a].name.localeCompare(EX[b].name));
+    body.querySelector(".subres").innerHTML = ids.length ? `<div class="sublist">${ids.map(id => `<button class="subrow" data-addid="${id}"><span class="thumb">${thumbHTML(id)}</span><span><b>${EX[id].name}</b><small>${esc(EX[id].equip)}</small></span><em>${here.has(id) ? `<span class="inplan">Today</span>` : ""}${esc(EX[id].muscles[0])}</em></button>`).join("")}</div>` : `<div class="optnote">No match for “${esc(q)}”.</div>`;
+    body.querySelectorAll("[data-addid]").forEach(b => b.onclick = () => {
+      const id = b.dataset.addid, i = addExercise(w, sess, id); api.close(); toast(`${EX[id].name} added.`);
+      setTimeout(() => { keep(rerender); const el = document.getElementById(`ex-${i}`); if (el) el.scrollIntoView({ block: "center", behavior: "smooth" }); }, 0);
+    });
+  } });
+}
+
 // Sick, wiped or busy: see what the week becomes before moving or skipping.
 function cantSheet(sess) {
   const w = weekRef(ui.b, ui.week), d = ui.dayIdx, s = DAYS[sess], a = slots(w), { a: after, dropped, past } = pushPlan(a, d);

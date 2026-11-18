@@ -27,8 +27,27 @@ export function setSub(w, s, i, id, original) {
   if (back) sset(subKey(w, s, i), before ? "" : null); // "" = back to the plan's lift from here on
   else sset(subKey(w, s, i), id === before ? null : id);
 }
+// Exercises you add to a session yourself. Stored per session as a list of ids
+// ("w3s0|added-0"); a removed one becomes null so later ones keep their logs.
+export const ADD0 = 100; // log index of the first added exercise
+const addedKey = (w, s) => setKey(ref(w), s, "added", 0);
+export const addedList = (w, s) => sget(addedKey(w, s)) || [];
+const addedItem = (x, k) => ({ x, s: 3, r: "10", added: true, k });
+export function addExercise(w, s, id) { const l = addedList(w, s).concat([id]); sset(addedKey(w, s), l); return ADD0 + l.length - 1; }
+export function removeExercise(w, s, k) {
+  const l = addedList(w, s).slice(); l[k] = null;
+  for (let n = 0; n < 12; n++) sset(setKey(ref(w), s, ADD0 + k, n), null);
+  sset(extraKey(w, s, ADD0 + k), null);
+  sset(addedKey(w, s), l.some(Boolean) ? l : null);
+}
+// Planned items plus added ones, each with its log index.
+export function itemsFor(w, s) {
+  const plan = DAYS[s] ? DAYS[s].items.map((it, i) => ({ it, i })) : [];
+  return plan.concat(addedList(w, s).map((x, k) => x && EX[x] ? { it: addedItem(x, k), i: ADD0 + k } : null).filter(Boolean));
+}
+export const itemAt = (w, s, i) => i >= ADD0 ? addedItem(addedList(w, s)[i - ADD0], i - ADD0) : DAYS[s].items[i];
 // Exercise shown for a planned item this week.
-export const exFor = (it, w, s, i) => activeSub(w, s, i) || it.x;
+export const exFor = (it, w, s, i) => it.added ? it.x : activeSub(w, s, i) || it.x;
 
 const MOVES = [/squat/i, /press/i, /curl(?!.*jefferson)/i, /raise(?!.*leg|.*calf|.*tib|.*soleus)/i, /row/i, /pulldown|pull-up/i, /extension|pushdown/i, /deadlift/i, /step-up/i, /fly|pec deck/i, /crunch|leg raise|ab /i, /jump|bound/i, /calf|soleus/i];
 const moveOf = e => MOVES.findIndex(re => re.test(e.name));
@@ -53,7 +72,7 @@ export function lastLogs(W, dayIdx) {
     const a = slots(Wk);
     for (let d = 0; d < upTo; d++) {
       const s = a[d]; if (s < 0 || !DAYS[s]) continue;
-      DAYS[s].items.forEach((it, i) => {
+      itemsFor(Wk, s).forEach(({ it, i }) => {
         const sets = []; for (let n = 0; n < 12; n++) { const v = sget(setKey(Wk, s, i, n)); if (v && v.w) sets[n] = { w: v.w, r: v.r }; }
         if (sets.length) map[exFor(it, Wk, s, i)] = sets;
       });
