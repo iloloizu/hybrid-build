@@ -5,7 +5,8 @@ import { weekRef, prevRef, weekLabel, weeksOf, blockById, dayDate } from "../pla
 import { STORE, ACTS, SYNC, dirty, persistLocal, sget, sset, flush, setKey, warmKey, schedKey } from "../storage.js";
 import { exFor, extraSets, addSet, removeSet, setSub, similar, totalSets, lastLogs, itemsFor, itemAt, addExercise, removeExercise, ADD0 } from "../plan/custom.js";
 import { slots, pushToTomorrow, pushPlan, swapDays, skipDay } from "../schedule.js";
-import { getRun, setRun, pace } from "../plan/runs.js";
+import { getRun, setRun, pace, isFinished, setFinished } from "../plan/runs.js";
+import { confetti } from "../ui/confetti.js";
 import { progress, esc, thumbHTML, CHECK, keep } from "./common.js";
 import { go, back } from "../router.js";
 import { topbar } from "../ui/topbar.js";
@@ -47,25 +48,23 @@ export function renderDay(w, d, isTodayTab) {
     ${!isToday && t ? `<button class="pill" id="jumptoday">Today</button>` : ""}
     <button class="stepbtn" data-step="1" ${w === nWeeks() && d === 6 ? "disabled" : ""} aria-label="Next day, ${DOW[nd]}"><span>${DOW[nd]} ${dayDate(weekRef(ui.b, nw), nd).getDate()}</span>${ICON.next}</button></div>`;
 
-  const R = getRun(iso(date)) || {};
-  const runline = acts.length || W.pause ? "" : `<div class="runlog"><span class="rl-lbl">Run</span><label class="field"><input inputmode="decimal" enterkeyhint="next" id="run-mi" aria-label="Miles run" value="${esc(R.mi)}" placeholder="—"><span>mi</span></label><label class="field"><input inputmode="numeric" enterkeyhint="done" id="run-min" aria-label="Minutes run" value="${esc(R.min)}" placeholder="—"><span>min</span></label><span class="rl-pace" id="run-pace">${pace(R)}</span></div>`;
   const strava = acts.length ? `<div class="strava"><div class="lbl">From Strava<em>${SYNC ? "synced " + SYNC : ""}</em></div>${acts.map(x => `<div class="act"><span class="aname">${esc(x.name || x.type)}</span><span class="astat">${[x.distance_mi ? x.distance_mi + " mi" : "", x.moving_time || "", x.pace ? x.pace + "/mi" : "", x.avg_hr ? x.avg_hr + " bpm" : ""].filter(Boolean).map(esc).join(" · ")}</span></div>`).join("")}</div>` : "";
 
   if (!s) {
     const skipped = sess === -2;
-    h += `<section class="hero"><h2 class="dim">${W.pause ? "Paused" : skipped ? "Skipped" : "Rest Day"}</h2><div class="meta">${flag ? `<span class="flag">${flag}</span>` : ""}<span>${P.rir}</span></div></section>${runline}
+    h += `<section class="hero"><h2 class="dim">${W.pause ? "Paused" : skipped ? "Skipped" : "Rest Day"}</h2><div class="meta">${flag ? `<span class="flag">${flag}</span>` : ""}<span>${P.rir}</span></div></section>
       <div class="longrun">${W.pause ? "Paused week. The plan picks up where you left off next week." : skipped ? "Skipped. Got 20 minutes? Pump Only keeps the priority muscles moving." : "Nothing scheduled. Easy run or full rest."}</div>${strava}
-      ${skipped ? `<button class="bigbtn ghost" data-quick="S5"><b>20 min</b> Pump Only</button>` : ""}`;
+      ${skipped ? `<button class="bigbtn ghost" data-quick="S5"><b>20 min</b> Pump Only</button>` : ""}${W.pause ? "" : (acts.length ? "" : runLine(date)) + finishBlock(date, null)}`;
     app.innerHTML = h; bindDay(sess); keepAwake(false); return;
   }
   if (s.kind === "run") {
-    h += `<section class="hero"><h2 class="run">${s.name}</h2><div class="meta"><span>Long run</span><span>No lifting</span>${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>${strava || runline}`;
+    h += `<section class="hero"><h2 class="run">${s.name}</h2><div class="meta"><span>Long run</span><span>No lifting</span>${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>${strava}${acts.length ? "" : runLine(date)}${finishBlock(date, null)}`;
     app.innerHTML = h; bindDay(sess); keepAwake(false); return;
   }
   const moved = sess !== d ? `<span class="hot">Moved from ${DOW[sess]}</span>` : "";
   h += `<section class="hero"><h2>${s.name}</h2><div class="meta"><span class="hot">${P.rir}</span>${moved}<span>${s.mins} min</span><span>${s.run}</span>${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>`;
   if (!(n === tot && tot)) h += `<button class="cantbtn" id="cant">Can't train today?</button>`;
-  h += strava + runline;
+  h += strava;
   const warmDone = KNEE.filter((_, i) => sget(warmKey(W, sess, i))).length;
   h += `<div class="lbl">Knee Ready<em>${warmDone}/${KNEE.length} · 10 min</em></div><div class="warm">${KNEE.map(([id, dz], i) => { const on = !!sget(warmKey(W, sess, i)); return `<div class="wcard${on ? " on" : ""}"><button class="thumb" data-ex="${id}" aria-label="How to do ${esc(EX[id].name)}">${thumbHTML(id)}</button><div class="wb"><span><span class="wn">${EX[id].name}</span><br><span class="wd">${dz}</span></span><button class="chk" aria-label="${esc(EX[id].name)} done" aria-pressed="${on}" data-warm="${i}">${CHECK}</button></div></div>`; }).join("")}</div>`;
   h += `<div class="lbl">Workout<em>${n}/${tot} sets</em></div><div class="list">`;
@@ -80,8 +79,9 @@ export function renderDay(w, d, isTodayTab) {
   }
   itemsFor(W, sess).filter(x => x.it.added).forEach(({ it, i }) => { h += exCard(it, i, sess); });
   h += `</div><button class="bigbtn ghost" id="addex">${ICON.plus}<span>Add exercise</span></button>`;
-  h += n === tot && tot ? `<div class="donebanner">Session done. ${n} sets.</div>` : "";
+  if (!acts.length) h += runLine(date);
   h += `<button class="bigbtn ghost" id="shorttime">${ICON.timer}<span>Short on time?</span></button>`;
+  h += finishBlock(date, [n, tot]);
   app.innerHTML = h; bindDay(sess); keepAwake(true);
 }
 
@@ -119,9 +119,14 @@ function bindDay(sess) {
   const tb = document.getElementById("tb-back"); if (tb) tb.onclick = () => back(`#/w/${ui.week}`);
   on("[data-step]", b => stepDay(+b.dataset.step));
   const cant = document.getElementById("cant"); if (cant) cant.onclick = () => cantSheet(sess);
-  const rmi = document.getElementById("run-mi"), rmin = document.getElementById("run-min");
-  if (rmi) { const date = iso(dayDate(W, d)), save = () => { const v = { mi: rmi.value.trim(), min: rmin.value.trim() }; setRun(date, v); document.getElementById("run-pace").textContent = pace(v); };
-    rmi.onchange = save; rmin.onchange = save; rmi.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); rmin.focus(); } }; rmin.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); rmin.blur(); } }; }
+  const fin = document.getElementById("finish"); if (fin) fin.onclick = () => finishSheet(W, d, sess);
+  const rmi = document.getElementById("day-run-mi"), rmin = document.getElementById("day-run-min");
+  if (rmi) {
+    const k = iso(dayDate(W, d)), save = () => { const v = { mi: rmi.value.trim(), min: rmin.value.trim() }; setRun(k, v); document.getElementById("day-run-pace").textContent = pace(v); };
+    rmi.onchange = save; rmin.onchange = save;
+    rmi.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); rmin.focus(); } };
+    rmin.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); rmin.blur(); } };
+  }
   const jt = document.getElementById("jumptoday"); if (jt) jt.onclick = () => go("#/today");
   on("[data-ex]", b => go(`#/ex/${b.dataset.ex}`));
   document.getElementById("opts").onclick = () => dayOptions(sess);
@@ -152,6 +157,38 @@ function bindDay(sess) {
   on("[data-subopen]", b => subSheet(sess, +b.dataset.subopen));
   on("[data-rmex]", b => { const k = +b.dataset.rmex, name = EX[itemAt(W, sess, ADD0 + k).x].name; removeExercise(W, sess, k); toast(`${name} removed.`); keep(rerender); });
   const ax = document.getElementById("addex"); if (ax) ax.onclick = () => addSheet(sess);
+}
+
+/* ---------- done for the day ---------- */
+// Run line near the end of the day: miles + minutes, saved as you type.
+function runLine(date) {
+  const r = getRun(iso(date)) || {};
+  return `<div class="runlog inline"><span class="rl-lbl">Run</span><label class="field"><input inputmode="decimal" enterkeyhint="next" id="day-run-mi" aria-label="Miles run" value="${esc(r.mi)}" placeholder="—"><span>mi</span></label><label class="field"><input inputmode="numeric" enterkeyhint="done" id="day-run-min" aria-label="Minutes run" value="${esc(r.min)}" placeholder="—"><span>min</span></label><span class="rl-pace" id="day-run-pace">${pace(r)}</span></div>`;
+}
+function finishBlock(date, prog) {
+  const k = iso(date), r = getRun(k);
+  if (isFinished(k)) return `<button class="donebanner" id="finish"><b>Done for the day</b><span>${prog && prog[1] ? `${prog[0]}/${prog[1]} sets` : ""}${prog && prog[1] && r && r.mi ? " · " : ""}${r && r.mi ? `${r.mi} mi` : ""}</span></button>`;
+  return `<button class="bigbtn finish" id="finish">Done for the day</button>`;
+}
+function finishSheet(W, d, sess) {
+  const date = dayDate(W, d), k = iso(date), [n, tot] = progress(W, sess);
+  let vol = 0; if (sess >= 0) itemsFor(W, sess).forEach(({ i }) => { for (let s = 0; s < 12; s++) { const v = sget(setKey(W, sess, i, s)); if (v && v.d) vol += (parseFloat(v.w) || 0) * (parseInt(v.r) || 0); } });
+  const act = (ACTS[k] || [])[0], R = getRun(k) || (act ? { mi: act.distance_mi ? String(act.distance_mi) : "", min: "" } : {});
+  openSheet({ title: "Done for the day", render: (body, api) => {
+    body.innerHTML = `${tot ? `<div class="stats"><div><b>${n}/${tot}</b><span>Sets</span></div><div><b>${vol ? Math.round(vol).toLocaleString() : "—"}</b><span>lb moved</span></div></div>` : ""}
+      <div class="lbl">Run today?<em>${act ? "From Strava" : "Skip if you didn't"}</em></div>
+      <div class="runlog"><label class="field"><input inputmode="decimal" enterkeyhint="next" id="run-mi" aria-label="Miles run" value="${esc(R.mi)}" placeholder="—"><span>mi</span></label><label class="field"><input inputmode="numeric" enterkeyhint="done" id="run-min" aria-label="Minutes run" value="${esc(R.min)}" placeholder="—"><span>min</span></label><span class="rl-pace" id="run-pace">${pace(R)}</span></div>
+      <button class="bigbtn" id="fin-go">Finish</button>`;
+    const mi = body.querySelector("#run-mi"), min = body.querySelector("#run-min"), upd = () => { body.querySelector("#run-pace").textContent = pace({ mi: mi.value, min: min.value }); };
+    mi.oninput = upd; min.oninput = upd;
+    mi.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); min.focus(); } };
+    min.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); min.blur(); } };
+    body.querySelector("#fin-go").onclick = () => {
+      setRun(k, { mi: mi.value.trim(), min: min.value.trim() }); setFinished(k, true);
+      api.close(); buzz(30); keepAwake(false); confetti();
+      setTimeout(() => { rerender(); setTimeout(() => stepDay(1), 650); }, 250);
+    };
+  } });
 }
 
 /* ---------- sheets ---------- */
