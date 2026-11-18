@@ -488,3 +488,13 @@ body:has(#timer.on) .wrap { padding-bottom: calc(var(--tabh) + 100px + env(safe-
 .plantext { min-height: 180px; font: 500 12px ui-monospace, Menlo, monospace; }
 .aistatus { min-height: 1.4em; font: 700 13px var(--body); color: var(--done); }
 .trybar .btnrow { width: 100%; justify-items: center; }
+
+/* sources */
+.sources ol { gap: 8px; font-size: 13.5px; }
+.sources a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; overflow-wrap: anywhere; }
+.sources small { display: block; color: var(--muted); font-size: 11.5px; margin-top: 1px; }
+.sources .ev { font-style: normal; font-weight: 800; }
+.ev.strong { color: var(--done); }
+.ev.moderate { color: var(--ink); }
+.ev.limited { color: var(--accent); }
+.evnote { font-size: 13px; color: var(--muted); }
