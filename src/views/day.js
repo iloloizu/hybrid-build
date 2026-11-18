@@ -1,0 +1,205 @@
+import { ui } from "../state.js";
+import { EX } from "../plan/exercises.js";
+import { KNEE, SWAPS, DAYS, DOW, PHASES, phaseOf, phaseName, dose, FLAGS, dayDate, fmt, iso } from "../plan/plan.js";
+import { STORE, ACTS, SYNC, dirty, persistLocal, sget, sset, flush, setKey, warmKey, schedKey } from "../storage.js";
+import { exFor, extraSets, addSet, removeSet, setSub, similar, totalSets } from "../plan/custom.js";
+import { slots, pushToTomorrow, swapDays, skipDay } from "../schedule.js";
+import { progress, esc, thumbHTML, CHECK, keep } from "./common.js";
+import { go, back } from "../router.js";
+import { topbar } from "../ui/topbar.js";
+import { ICON } from "../ui/icons.js";
+import { openSheet } from "../ui/sheet.js";
+import { toast } from "../ui/toast.js";
+import { startRest } from "../ui/timer.js";
+import { buzz, keepAwake } from "../ui/device.js";
+import { todayWD } from "./today.js";
+import { rerender } from "./app.js";
+
+/* ---------- day screen: one session, nothing else ---------- */
+const dayPath = (w, d) => `#/w/${w}/d/${d}`;
+function step(w, d, k) { let x = (w - 1) * 7 + d + k; x = Math.max(0, Math.min(69, x)); return [Math.floor(x / 7) + 1, x % 7]; }
+export function stepDay(k) { const [w, d] = step(ui.week, ui.dayIdx, k); if (w !== ui.week || d !== ui.dayIdx) go(dayPath(w, d), { replace: true }); }
+
+export function renderDay(w, d, isTodayTab) {
+  ui.week = w; ui.dayIdx = d;
+  const app = document.getElementById("app"); app.className = "wrap day";
+  const a = slots(w), sess = a[d], s = sess >= 0 ? DAYS[sess] : null, P = PHASES[phaseOf(w)];
+  const date = dayDate(w, d), acts = ACTS[iso(date)] || [], t = todayWD(), isToday = t && t.w === w && t.d === d;
+  const [n, tot] = progress(w, sess);
+  const [pw, pd] = step(w, d, -1), [nw, nd] = step(w, d, 1);
+  const flag = FLAGS[`${w}-${d}`];
+
+  let h = topbar({
+    title: isToday ? "Today" : `${DOW[d]}, ${fmt(date)}`,
+    sub: isToday ? `${DOW[d]}, ${fmt(date)} · Wk ${w}` : `Week ${w} · ${phaseName(w)}`,
+    back: isTodayTab ? null : { label: `Week ${w}` },
+    right: `<button class="iconbtn" id="opts" aria-label="Day options">${ICON.more}</button>`,
+    progress: s && s.kind !== "run" && tot ? n / tot : null
+  });
+  h += `<div class="daynav"><button class="stepbtn" data-step="-1" ${w === 1 && d === 0 ? "disabled" : ""} aria-label="Previous day, ${DOW[pd]}">${ICON.prev}<span>${DOW[pd]} ${dayDate(pw, pd).getDate()}</span></button>
+    ${!isToday && t ? `<button class="pill" id="jumptoday">Today</button>` : ""}
+    <button class="stepbtn" data-step="1" ${w === 10 && d === 6 ? "disabled" : ""} aria-label="Next day, ${DOW[nd]}"><span>${DOW[nd]} ${dayDate(nw, nd).getDate()}</span>${ICON.next}</button></div>`;
+
+  const strava = acts.length ? `<div class="strava"><div class="lbl">From Strava<em>${SYNC ? "synced " + SYNC : ""}</em></div>${acts.map(x => `<div class="act"><span class="aname">${esc(x.name || x.type)}</span><span class="astat">${[x.distance_mi ? x.distance_mi + " mi" : "", x.moving_time || "", x.pace ? x.pace + "/mi" : "", x.avg_hr ? x.avg_hr + " bpm" : ""].filter(Boolean).map(esc).join(" · ")}</span></div>`).join("")}</div>` : "";
+
+  if (!s) {
+    const skipped = sess === -2;
+    h += `<section class="hero"><h2 class="dim">${skipped ? "Skipped" : "Rest Day"}</h2><div class="meta">${flag ? `<span class="flag">${flag}</span>` : ""}<span>${P.rir}</span></div></section>
+      <div class="longrun">${skipped ? "Skipped. Got 20 minutes? Pump Only keeps the priority muscles moving." : "Nothing scheduled. Easy run or full rest."}</div>${strava}
+      ${skipped ? `<button class="bigbtn ghost" data-quick="S5"><b>20 min</b> Pump Only</button>` : ""}`;
+    app.innerHTML = h; bindDay(sess); keepAwake(false); return;
+  }
+  if (s.kind === "run") {
+    h += `<section class="hero"><h2 class="run">${s.name}</h2><div class="meta"><span>Long run</span><span>No lifting</span>${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>${strava || `<div class="longrun">Long run day. It shows up here once Strava syncs.</div>`}`;
+    app.innerHTML = h; bindDay(sess); keepAwake(false); return;
+  }
+  const moved = sess !== d ? `<span class="hot">Moved from ${DOW[sess]}</span>` : "";
+  h += `<section class="hero"><h2>${s.name}</h2><div class="meta"><span class="hot">${P.rir}</span>${moved}<span>${s.mins} min</span><span>${s.run}</span>${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>`;
+  h += strava;
+  const warmDone = KNEE.filter((_, i) => sget(warmKey(w, sess, i))).length;
+  h += `<div class="lbl">Knee Ready<em>${warmDone}/${KNEE.length} · 10 min</em></div><div class="warm">${KNEE.map(([id, dz], i) => { const on = !!sget(warmKey(w, sess, i)); return `<div class="wcard${on ? " on" : ""}"><button class="thumb" data-ex="${id}" aria-label="How to do ${esc(EX[id].name)}">${thumbHTML(id)}</button><div class="wb"><span><span class="wn">${EX[id].name}</span><br><span class="wd">${dz}</span></span><button class="chk" aria-label="${esc(EX[id].name)} done" aria-pressed="${on}" data-warm="${i}">${CHECK}</button></div></div>`; }).join("")}</div>`;
+  h += `<div class="lbl">Workout<em>${n}/${tot} sets</em></div><div class="list">`;
+  let i = 0;
+  while (i < s.items.length) {
+    const it = s.items[i];
+    if (it.ss) {
+      const g0 = it.ss; let g = "", cnt = 0;
+      while (i < s.items.length && s.items[i].ss === g0) { const c = exCard(s.items[i], i, sess); if (c) { g += c; cnt++; } i++; }
+      if (cnt) h += `<div class="ss"><div class="ss-tag">${g0 === 3 ? "Arm finisher" : "Superset"} · no rest between</div>${g}</div>`;
+    } else { const c = exCard(it, i, sess); if (c) h += c; i++; }
+  }
+  h += `</div>`;
+  h += n === tot && tot ? `<div class="donebanner">Session done. ${n} sets.</div>` : "";
+  h += `<button class="bigbtn ghost" id="shorttime">${ICON.timer}<span>Short on time?</span></button>`;
+  app.innerHTML = h; bindDay(sess); keepAwake(true);
+}
+
+export function exCard(it, i, sess) {
+  const w = ui.week, ds = dose(it, w); if (!ds) return "";
+  const x = exFor(it, w, sess, i), e = EX[x], subbed = x !== it.x;
+  const extra = extraSets(w, sess, i), total = ds.s + extra;
+  let all = true, rows = "";
+  for (let s = 0; s < total; s++) {
+    const v = sget(setKey(w, sess, i, s)) || {};
+    const prev = w > 1 ? (sget(setKey(w - 1, sess, i, s)) || {}) : {};
+    if (!v.d) all = false;
+    rows += `<div class="set${v.d ? " is-done" : ""}${s >= ds.s ? " extra" : ""}"><span class="n">${s + 1}</span>
+      <label class="field"><input inputmode="decimal" enterkeyhint="next" aria-label="Set ${s + 1} weight" data-i="${i}" data-s="${s}" data-f="w" value="${esc(v.w)}" placeholder="${esc(prev.w || (it.bw && !subbed ? "BW" : "—"))}"><span>lb</span></label>
+      <label class="field"><input inputmode="numeric" enterkeyhint="${s + 1 < total ? "next" : "done"}" aria-label="Set ${s + 1} reps" data-i="${i}" data-s="${s}" data-f="r" value="${esc(v.r)}" placeholder="${esc(ds.r)}"><span>reps</span></label>
+      <button class="chk" aria-label="Set ${s + 1} done" aria-pressed="${!!v.d}" data-i="${i}" data-s="${s}" data-done="1">${CHECK}</button></div>`;
+  }
+  const sub = [subbed ? `<span class="p">For ${esc(EX[it.x].name)}</span>` : it.tag === "main" ? `<span class="p">Main lift</span>` : it.tag === "pri" ? `<span class="p">Priority</span>` : "", ds.note].filter(Boolean).join(" · ");
+  const foot = `<div class="exfoot"><button data-addset="${i}" aria-label="Add a set">+ Set</button>${extra ? `<button data-rmset="${i}" aria-label="Remove the last added set">− Set</button>` : ""}<button data-subopen="${i}">${ICON.swap}<span>Substitute</span></button></div>`;
+  return `<article class="ex${all ? " done" : ""}${subbed ? " subbed" : ""}" id="ex-${i}"><button class="exhead" data-ex="${x}" aria-label="How to do ${esc(e.name)}"><span class="thumb">${thumbHTML(x)}</span><span><span class="exname">${e.name}</span>${sub ? `<span class="exsub">${sub}</span>` : ""}</span><span class="dose">${total}×${ds.r}<small>${extra ? `+${extra} extra` : it.u ? it.u.replace("/", "per ") : "sets × reps"}</small></span></button><div class="sets">${rows}</div>${foot}</article>`;
+}
+
+// Rest after a checked set: none mid-superset (go straight to the partner exercise).
+function restFor(items, i) {
+  const it = items[i], nx = items[i + 1];
+  if (it.ss && nx && nx.ss === it.ss) return 0;
+  return it.tag === "main" ? 120 : 75;
+}
+
+function bindDay(sess) {
+  const app = document.getElementById("app"), w = ui.week, d = ui.dayIdx;
+  const on = (sel, fn) => app.querySelectorAll(sel).forEach(b => b.onclick = () => fn(b));
+  const tb = document.getElementById("tb-back"); if (tb) tb.onclick = () => back(`#/w/${w}`);
+  on("[data-step]", b => stepDay(+b.dataset.step));
+  const jt = document.getElementById("jumptoday"); if (jt) jt.onclick = () => go("#/today");
+  on("[data-ex]", b => go(`#/ex/${b.dataset.ex}`));
+  document.getElementById("opts").onclick = () => dayOptions(sess);
+  const st = document.getElementById("shorttime"); if (st) st.onclick = () => quickSheet(DAYS[sess].swaps);
+  on("[data-quick]", b => quickSheet([b.dataset.quick]));
+  on("[data-warm]", b => { const k = warmKey(w, sess, +b.dataset.warm); const was = sget(k); sset(k, was ? null : 1); if (!was) buzz(); keep(rerender); });
+  on("[data-done]", b => {
+    const i = +b.dataset.i, s = +b.dataset.s, k = setKey(w, sess, i, s), v = Object.assign({}, sget(k) || {});
+    const items = DAYS[sess].items;
+    if (!v.d) { if (!v.r) v.r = dose(items[i], w).r; v.d = 1; buzz(); const r = restFor(items, i); if (r) startRest(r); } else v.d = 0;
+    sset(k, v); keep(rerender);
+  });
+  app.querySelectorAll("input[data-f]").forEach(inp => {
+    inp.onchange = () => {
+      const i = +inp.dataset.i, s = +inp.dataset.s, f = inp.dataset.f, k = setKey(w, sess, i, s), v = Object.assign({}, sget(k) || {});
+      v[f] = inp.value.trim(); sset(k, v);
+      if (f === "w" && v.w) { const n = totalSets(DAYS[sess].items[i], w, sess, i); for (let t = s + 1; t < n; t++) { const kk = setKey(w, sess, i, t), vv = Object.assign({}, sget(kk) || {}); if (!vv.w) { vv.w = v.w; sset(kk, vv); const el = app.querySelector(`input[data-i="${i}"][data-s="${t}"][data-f="w"]`); if (el) el.value = v.w; } } }
+    };
+    // Enter moves weight → reps → next set's weight.
+    inp.onkeydown = e => {
+      if (e.key !== "Enter") return; e.preventDefault();
+      const all = [...app.querySelectorAll("input[data-f]")], k = all.indexOf(inp);
+      if (all[k + 1]) all[k + 1].focus(); else inp.blur();
+    };
+  });
+  on("[data-addset]", b => { addSet(w, sess, +b.dataset.addset); keep(rerender); });
+  on("[data-rmset]", b => { const i = +b.dataset.rmset; sset(setKey(w, sess, i, totalSets(DAYS[sess].items[i], w, sess, i) - 1), null); removeSet(w, sess, i); keep(rerender); });
+  on("[data-subopen]", b => subSheet(sess, +b.dataset.subopen));
+}
+
+/* ---------- sheets ---------- */
+function quickSheet(keys) {
+  let openK = keys.length === 1 ? keys[0] : null;
+  openSheet({ title: "Short on time", render: (body, api) => {
+    body.innerHTML = `<div class="optlist">${keys.map(k => `<button class="optrow" data-k="${k}" aria-expanded="${openK === k}"><b class="tag">${SWAPS[k].m}</b><span>${SWAPS[k].t}</span></button>${openK === k ? `<ol class="quickol">${SWAPS[k].l.map(x => `<li>${x}</li>`).join("")}</ol>` : ""}`).join("")}</div>`;
+    body.querySelectorAll("[data-k]").forEach(b => b.onclick = () => { openK = openK === b.dataset.k ? null : b.dataset.k; api.refresh(); });
+  } });
+}
+
+function dayOptions(sess) {
+  const w = ui.week, d = ui.dayIdx, s = sess >= 0 ? DAYS[sess] : null, lifting = s && s.kind !== "run";
+  const changed = !!sget(schedKey(w));
+  let mode = null;
+  openSheet({ title: `${DOW[d]} options`, render: (body, api) => {
+    const a = slots(w);
+    let h = `<div class="optlist">`;
+    if (lifting) {
+      h += `<button class="optrow" data-m="push" aria-expanded="${mode === "push"}"><b class="tag">→</b><span>Push to tomorrow</span></button>`;
+      if (mode === "push") h += `<div class="optnote">${d < 5 ? "Today becomes rest and the rest of the week slides a day. If the week runs out of room, the least important session drops (Pump Fiction, then Hinge Benefits)." : "Saturday's session has nowhere to go, so it drops this week."}<button class="bigbtn" data-do="push">Push it</button></div>`;
+      h += `<button class="optrow" data-m="swap" aria-expanded="${mode === "swap"}"><b class="tag">⇄</b><span>Swap with another day</span></button>`;
+      if (mode === "swap") h += `<div class="optnote"><div class="daychips">${a.map((x, i) => i === d || i === 6 ? "" : `<button data-swapwith="${i}"><b>${DOW[i]}</b>${x >= 0 ? DAYS[x].name : "Rest"}</button>`).join("")}</div></div>`;
+      h += `<button class="optrow" data-m="skip" aria-expanded="${mode === "skip"}"><b class="tag">✕</b><span>Skip</span></button>`;
+      if (mode === "skip") h += `<div class="optnote">${s.rank <= 2 ? "This is a priority session. Pushing it usually beats skipping it." : "Skipping keeps the rest of the week where it is."}<div class="btnrow"><button class="bigbtn" data-do="skip">Skip it</button>${s.rank <= 2 ? `<button class="bigbtn ghost" data-do="push">Push instead</button>` : ""}</div></div>`;
+      h += `<button class="optrow" data-do="quick"><b class="tag">⏱</b><span>Short on time</span></button>`;
+      h += `<button class="optrow danger" data-do="clear"><b class="tag">⌫</b><span>Clear this session's log</span></button>`;
+    }
+    if (changed) h += `<button class="optrow" data-do="reset"><b class="tag">↺</b><span>Undo schedule changes this week</span></button>`;
+    if (!lifting && !changed) h += `<div class="optnote">Nothing to change on a ${s ? "long run" : "rest"} day.</div>`;
+    body.innerHTML = h + `</div>`;
+    body.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { mode = mode === b.dataset.m ? null : b.dataset.m; api.refresh(); });
+    body.querySelectorAll("[data-swapwith]").forEach(b => b.onclick = () => { const to = +b.dataset.swapwith; swapDays(w, d, to); api.close(); toast(`Swapped with ${DOW[to]}.`); setTimeout(rerender, 0); });
+    body.querySelectorAll("[data-do]").forEach(b => b.onclick = () => {
+      const k = b.dataset.do;
+      if (k === "quick") { api.close(); setTimeout(() => quickSheet(s.swaps), 250); return; }
+      if (k === "clear" && !confirm("Clear every set logged for this session?")) return;
+      let msg = "";
+      if (k === "push") msg = pushToTomorrow(w, d);
+      if (k === "skip") { skipDay(w, d); msg = "Skipped. The rest of the week stays put."; }
+      if (k === "clear") { const g = `w${w}s${sess}`; STORE[g] = {}; persistLocal(); dirty.add(g); flush(); msg = "Session log cleared."; }
+      if (k === "reset") { sset(schedKey(w), null); msg = "Week back to the original plan."; }
+      api.close(); toast(msg); setTimeout(rerender, 0);
+    });
+  } });
+}
+
+function subSheet(sess, i) {
+  const w = ui.week, it = DAYS[sess].items[i], cur = exFor(it, w, sess, i);
+  let q = "";
+  openSheet({ title: `Swap ${EX[it.x].name}`, tall: true, render: (body, api) => {
+    const first = !body.firstChild;
+    if (first) {
+      body.innerHTML = `<label class="search">${ICON.search}<input type="search" placeholder="Search exercises" aria-label="Search exercises" enterkeyhint="search"></label><div class="subnote">Applies from week ${w} on</div><div class="subres"></div>`;
+      body.querySelector("input").oninput = e => { q = e.target.value.trim().toLowerCase(); api.refresh(); };
+    }
+    const match = id => !q || (EX[id].name + " " + EX[id].muscles.join(" ") + " " + EX[id].equip).toLowerCase().includes(q);
+    const list = similar(it.x), close = list.filter(r => r.score >= 4 && match(r.id)), rest = list.filter(r => r.score < 4 && match(r.id)).sort((a, b) => EX[a.id].name.localeCompare(EX[b.id].name));
+    const row = id => `<button class="subrow" data-pick="${id}" aria-pressed="${id === cur}"><span class="thumb">${thumbHTML(id)}</span><span><b>${EX[id].name}</b><small>${esc(EX[id].equip)}</small></span><em>${esc(EX[id].muscles[0])}</em></button>`;
+    body.querySelector(".subres").innerHTML = (cur !== it.x ? `<button class="subrow back" data-pick="${it.x}"><span class="thumb">${thumbHTML(it.x)}</span><span><b>Back to ${EX[it.x].name}</b><small>The planned lift</small></span><em>Plan</em></button>` : "")
+      + (close.length ? `<div class="sublbl">Closest</div><div class="sublist">${close.map(r => row(r.id)).join("")}</div>` : "")
+      + (rest.length ? `<div class="sublbl">Everything else</div><div class="sublist">${rest.map(r => row(r.id)).join("")}</div>` : "")
+      + (!close.length && !rest.length ? `<div class="optnote">No match for “${esc(q)}”.</div>` : "");
+    body.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => {
+      const id = b.dataset.pick; setSub(w, sess, i, id, it.x); api.close();
+      toast(id === it.x ? `Back to ${EX[it.x].name}.` : `${EX[id].name} from week ${w} on.`);
+      setTimeout(() => { keep(rerender); const el = document.getElementById(`ex-${i}`); if (el) el.scrollIntoView({ block: "center" }); }, 0);
+    });
+  } });
+}
