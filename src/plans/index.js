@@ -77,7 +77,8 @@ function build(plan) {
 }
 
 const BUILT = {};
-export function customPlans() { const v = sget("plans|custom"); return Array.isArray(v) ? v : []; }
+// Plans that came from outside (imports, AI, paste) are cleaned every time they're read, not just on import.
+export function customPlans() { const v = sget("plans|custom"); return Array.isArray(v) ? v.map(p => { try { return cleanPlan(p); } catch (e) { return null; } }).filter(Boolean) : []; }
 export function allPlans() { return [HYBRID, SIMON, AWO, AI].concat(customPlans()); }
 export function planById(id) {
   const p = allPlans().find(x => x.id === id) || HYBRID;
@@ -105,12 +106,45 @@ export function phaseInfo(planId, pw) {
 }
 
 // Import a plan file (same shape as data.js plans, JSON). Returns the plan.
+/* ---------- safety: anything from a file, paste or AI is untrusted data ----------
+   Plain text only (no markup characters), bounded sizes, and exercise refs that must name a
+   library exercise. Nothing from a plan is ever run as code. */
+const LIMIT = { json: 300000, name: 80, short: 24, blurb: 280, rule: 120, day: 40, line: 300, lines: 40, phases: 20, weeks: 52 };
+export function cleanText(v, max) {
+  return String(v == null ? "" : v).replace(/[\u0000-\u001f\u007f<>`\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+}
+const cleanLine = l => {
+  const parts = cleanText(l, LIMIT.line).split("|").map(x => x.trim()).slice(0, 5);
+  if (!parts[0]) return "";
+  if (parts[1] && !/^[=~][a-z0-9-]{1,40}$/.test(parts[1])) parts[1] = "~bench"; // unknown ref → a generic animation
+  return parts.join(" | ");
+};
+function cleanPlan(src) {
+  if (!src || typeof src !== "object" || Array.isArray(src)) throw new Error("Not a plan");
+  const name = cleanText(src.name, LIMIT.name); if (!name) throw new Error("A plan needs a name");
+  const rawPhases = Array.isArray(src.phases) ? src.phases.slice(0, LIMIT.phases) : [];
+  if (!rawPhases.length) throw new Error("A plan needs at least one phase");
+  const toInt = (v, lo, hi, d) => { const n = Math.round(+v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
+  let weeks = toInt(src.weeks, 1, LIMIT.weeks, 0);
+  const phases = rawPhases.map((ph, k) => {
+    const from = toInt(ph && ph.from, 1, LIMIT.weeks, k + 1), to = toInt(ph && ph.to, from, LIMIT.weeks, from);
+    const days = (Array.isArray(ph && ph.days) ? ph.days : []).slice(0, 7).map(d => {
+      if (!d || typeof d !== "object") return null;
+      const lines = (typeof d.lines === "string" ? d.lines.split("\n") : Array.isArray(d.exercises) ? d.exercises : []).slice(0, LIMIT.lines).map(cleanLine).filter(Boolean);
+      return lines.length ? { name: cleanText(d.name, LIMIT.day), lines: lines.join("\n") } : null;
+    });
+    while (days.length < 7) days.push(null);
+    return { from, to, name: cleanText(ph && ph.name, LIMIT.day) || `Phase ${k + 1}`, rule: cleanText(ph && ph.rule, LIMIT.rule), days };
+  });
+  weeks = weeks || Math.max(...phases.map(ph => ph.to));
+  if (!phases.some(ph => ph.days.some(Boolean))) throw new Error("No exercises found");
+  return { id: "c-" + slug(name), name, by: cleanText(src.by, LIMIT.name) || "Imported", short: cleanText(src.short, LIMIT.short) || name.split(" ")[0].slice(0, LIMIT.short),
+    blurb: cleanText(src.blurb, LIMIT.blurb), note: cleanText(src.note, LIMIT.blurb), weeks, phases };
+}
 export function importPlan(text) {
-  let p; try { p = JSON.parse(text); } catch (e) { throw new Error("Not a plan file"); }
-  if (!p || !p.name || !Array.isArray(p.phases) || !p.phases.length) throw new Error("A plan needs a name and phases");
-  p.id = "c-" + slug(p.name); p.weeks = +p.weeks || Math.max(...p.phases.map(ph => ph.to || 1)); p.by = p.by || "Imported";
-  p.short = p.short || p.name.split(" ")[0];
-  p.phases.forEach(ph => { ph.days = (ph.days || []).slice(0, 7); while (ph.days.length < 7) ph.days.push(null); ph.days = ph.days.map(d => d && (d.lines || (Array.isArray(d.exercises) ? d.exercises.join("\n") : "")) ? { name: d.name || "", lines: d.lines || d.exercises.join("\n") } : null); });
+  if (typeof text !== "string" || text.length > LIMIT.json) throw new Error("That plan is too large");
+  let raw; try { raw = JSON.parse(text); } catch (e) { throw new Error("Not a plan file"); }
+  const p = cleanPlan(raw);
   build(p); // throws early on bad data
   sset("plans|custom", customPlans().filter(x => x.id !== p.id).concat([p]));
   return p;

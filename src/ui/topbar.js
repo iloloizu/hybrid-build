@@ -6,7 +6,7 @@ import { esc } from "../views/common.js";
 export function topbar({ title, sub = "", back = null, right = "", progress = null }) {
   return `<header class="topbar${back ? "" : " root"}">
     <div class="tb-left">${back ? `<button class="tb-back" id="tb-back" aria-label="Back to ${esc(back.label)}">${ICON.back}<span>${esc(back.label)}</span></button>` : ""}</div>
-    <div class="tb-title"><b>${title}</b>${sub ? `<span>${sub}</span>` : ""}</div>
+    <div class="tb-title"><b>${esc(title)}</b>${sub ? `<span>${esc(sub)}</span>` : ""}</div>
     <div class="tb-right">${right}</div>
     ${progress != null ? `<i class="tb-prog" style="width:${Math.round(progress * 100)}%"></i>` : ""}
   </header>`;

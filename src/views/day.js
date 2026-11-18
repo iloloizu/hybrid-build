@@ -63,11 +63,11 @@ export function renderDay(w, d, isTodayTab) {
     app.innerHTML = h; bindDay(sess); keepAwake(false); return;
   }
   if (s.kind === "run") {
-    h += `<section class="hero"><h2 class="run">${s.name}</h2><div class="meta"><span>Long run</span><span>No lifting</span>${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>${strava}${acts.length ? "" : runLine(date)}${finishBlock(date, null)}`;
+    h += `<section class="hero"><h2 class="run">${esc(s.name)}</h2><div class="meta"><span>Long run</span><span>No lifting</span>${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>${strava}${acts.length ? "" : runLine(date)}${finishBlock(date, null)}`;
     app.innerHTML = h; bindDay(sess); keepAwake(false); return;
   }
   const moved = sess !== d ? `<span class="hot">Moved from ${dowName(sess)}</span>` : "";
-  h += `<section class="hero"><h2>${s.name}</h2><div class="meta">${hybrid ? `<span class="hot">${P.rir}</span>` : ""}${moved}${hybrid ? `<span>${s.mins} min</span><span>${s.run}</span>` : metaPills(s)}${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>`;
+  h += `<section class="hero"><h2>${esc(s.name)}</h2><div class="meta">${hybrid ? `<span class="hot">${P.rir}</span>` : ""}${moved}${hybrid ? `<span>${s.mins} min</span><span>${s.run}</span>` : metaPills(s)}${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>`;
   if (!(n === tot && tot)) h += `<button class="cantbtn" id="cant">Can't train today?</button>`;
   h += strava;
   if (hybrid) {
@@ -108,7 +108,7 @@ export function exCard(it, i, sess) {
   }
   const sub = [it.added ? `<span class="p">Added</span>` : subbed ? `<span class="p">For ${esc(EX[it.x].name)}</span>` : it.tag === "main" ? `<span class="p">Main lift</span>` : it.tag === "pri" ? `<span class="p">Priority</span>` : "", ds.note].filter(Boolean).join(" · ");
   const foot = `<div class="exfoot"><button class="ib" data-addset="${i}" aria-label="Add a set" title="Add a set">${ICON.plus}</button>${extra ? `<button class="ib" data-rmset="${i}" aria-label="Remove the last added set" title="Remove a set">${ICON.minus}</button>` : ""}${it.added ? `<button class="ib" data-rmex="${it.k}" aria-label="Remove ${esc(e.name)}" title="Remove">${ICON.close}</button>` : `<button class="ib" data-subopen="${i}" aria-label="Substitute ${esc(e.name)}" title="Substitute">${ICON.swap}</button>`}</div>`;
-  return `<article class="ex${all ? " done" : ""}${subbed ? " subbed" : ""}" id="ex-${i}"><button class="exhead" data-ex="${x}" aria-label="How to do ${esc(e.name)}"><span class="thumb">${thumbHTML(x)}</span><span><span class="exname">${!subbed && it.label ? esc(it.label) : e.name}</span>${sub ? `<span class="exsub">${sub}</span>` : ""}</span><span class="dose">${total}×${ds.r}<small>${extra ? `+${extra} extra` : it.u ? it.u.replace("/", "per ") : "sets × reps"}</small></span></button><div class="sets">${rows}</div>${foot}</article>`;
+  return `<article class="ex${all ? " done" : ""}${subbed ? " subbed" : ""}" id="ex-${i}"><button class="exhead" data-ex="${x}" aria-label="How to do ${esc(e.name)}"><span class="thumb">${thumbHTML(x)}</span><span><span class="exname">${esc(!subbed && it.label ? it.label : e.name)}</span>${sub ? `<span class="exsub">${sub}</span>` : ""}</span><span class="dose">${total}×${ds.r}<small>${extra ? `+${extra} extra` : it.u ? it.u.replace("/", "per ") : "sets × reps"}</small></span></button><div class="sets">${rows}</div>${foot}</article>`;
 }
 
 // Rest after a checked set: none mid-superset (go straight to the partner exercise).
@@ -243,10 +243,10 @@ function cantSheet(sess) {
   const row = i => { const x = after[i], was = a[i], name = x >= 0 ? SS()[x].name : "Rest"; return `<li class="${x !== was ? "chg" : ""}"><b>${dowName(i)}</b><span>${name}</span></li>`; };
   openSheet({ title: "Can't train today?", render: (body, api) => {
     body.innerHTML = `<div class="optnote">Sick or wiped out? Rest. If you're still down tomorrow, push again.</div>
-      <div class="cantopt"><div class="lbl">Move ${s.name} to tomorrow</div>
+      <div class="cantopt"><div class="lbl">Move ${esc(s.name)} to tomorrow</div>
         ${past ? `<div class="optnote">Nowhere left to move it this week, so it drops.</div>` : `<ol class="preview">${[d, d + 1, d + 2, d + 3, d + 4, d + 5].filter(i => i <= 5).map(row).join("")}</ol>${dropped != null ? `<div class="optnote drop">${SS()[dropped].name} drops this week to make room.</div>` : ""}`}
         <button class="bigbtn" data-c="push">${past ? "Drop it" : "Move it"}</button></div>
-      <div class="cantopt"><div class="lbl">Skip ${s.name}</div><div class="optnote">${s.rank <= 2 ? "It's a priority session, so moving it usually beats skipping." : "The rest of the week stays where it is."}</div>
+      <div class="cantopt"><div class="lbl">Skip ${esc(s.name)}</div><div class="optnote">${s.rank <= 2 ? "It's a priority session, so moving it usually beats skipping." : "The rest of the week stays where it is."}</div>
         <button class="bigbtn ghost" data-c="skip">Skip it</button></div>`;
     body.querySelectorAll("[data-c]").forEach(b => b.onclick = () => {
       const msg = b.dataset.c === "push" ? pushToTomorrow(w, d) : (skipDay(w, d), "Skipped. Rest up.");
