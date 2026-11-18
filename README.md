@@ -17,9 +17,21 @@ npm run build      # one self-contained file: dist/index.html
 
 Every set, check and schedule change saves to the phone the moment you enter it, with no network needed. The app asks the browser to keep that data permanently, and **Back up** / **Restore** at the bottom of the plan downloads or reloads all logs as a JSON file. Inside the Claude artifact, logs also sync to the artifact's database as before.
 
+## Hosting (GitHub Pages, password-locked)
+
+Every push to `main` runs `.github/workflows/pages.yml`: tests, build, then `scripts/lock.mjs` encrypts the page with the `PAGE_PASSWORD` repo secret (AES-GCM, PBKDF2 600k rounds). The published URL shows only a password box; the plan and code inside the page aren't readable without it. After the first unlock the key is remembered on that device, so it opens straight in, offline too. If the secret isn't set, the workflow skips the deploy rather than publish an unlocked page.
+
+One-time setup:
+1. Settings → General → Danger Zone → Change visibility → Public (free Pages needs a public repo; the source is then readable on GitHub, logs never are since they stay on the phone).
+2. Settings → Pages → Source: **GitHub Actions**.
+3. Settings → Secrets and variables → Actions → New repository secret: `PAGE_PASSWORD` (10+ characters).
+4. Actions → Deploy to GitHub Pages → Run workflow. The app is then at `https://iloloizu.github.io/hybrid-build/`.
+
+Changing the password: update the secret and re-run the workflow. Each device asks once more.
+
 ## Install on iPhone
 
-Host `dist/` on any HTTPS static host, open it in Safari, then Share → Add to Home Screen. After the first visit it opens and logs offline. (Installing also stops Safari from clearing the data after weeks without use.)
+Open the Pages URL in Safari, unlock it, then Share → Add to Home Screen. After the first visit it opens and logs offline. (Installing also stops Safari from clearing the data after weeks without use.)
 
 ## Layout
 
