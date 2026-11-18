@@ -165,7 +165,13 @@ h1, h2, h3, h4 { margin: 0; font-weight: 400; font-family: var(--display); lette
   .wrap { max-width: 1000px; padding: 0 28px calc(var(--tabh) + 36px + env(safe-area-inset-bottom)); gap: 18px; }
   .hero h2 { font-size: clamp(56px, 7vw, 76px); }
   .warm { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: visible; }
-  .list { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 12px; }
+  .list { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  /* single exercise: name + buttons left, sets right (full width, no holes, order kept) */
+  .list > .ex { grid-template-columns: minmax(230px, .85fr) minmax(0, 1.5fr); grid-template-rows: auto 1fr; column-gap: 18px; align-items: start; }
+  .list > .ex > .exhead { grid-column: 1; grid-row: 1; }
+  .list > .ex > .sets { grid-column: 2; grid-row: 1 / span 2; }
+  .list > .ex > .exfoot { grid-column: 1; grid-row: 2; align-self: end; }
+  .list > .ex > .exfoot button[data-subopen] { margin-left: 0; }
   .ss { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); background: var(--card); }
   .ss-tag { grid-column: 1 / -1; }
   .ss .ex + .ex { border-top: 0; border-left: 1px solid var(--line); }
