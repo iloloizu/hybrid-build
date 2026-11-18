@@ -1,8 +1,9 @@
 import { ui } from "../state.js";
 import { EX } from "../plan/exercises.js";
-import { KNEE, SWAPS, DAYS, DOW, PHASES, phaseOf, phaseName, dose, FLAGS, dayDate, fmt, iso } from "../plan/plan.js";
+import { KNEE, SWAPS, DAYS, DOW, PHASES, phaseOf, phaseName, dose, flagFor, fmt, iso } from "../plan/plan.js";
+import { weekRef, prevRef, weekLabel, weeksOf, blockById, dayDate } from "../plan/blocks.js";
 import { STORE, ACTS, SYNC, dirty, persistLocal, sget, sset, flush, setKey, warmKey, schedKey } from "../storage.js";
-import { exFor, extraSets, addSet, removeSet, setSub, similar, totalSets } from "../plan/custom.js";
+import { exFor, extraSets, addSet, removeSet, setSub, similar, totalSets, lastLogs } from "../plan/custom.js";
 import { slots, pushToTomorrow, swapDays, skipDay } from "../schedule.js";
 import { progress, esc, thumbHTML, CHECK, keep } from "./common.js";
 import { go, back } from "../router.js";
@@ -16,36 +17,41 @@ import { todayWD } from "./today.js";
 import { rerender } from "./app.js";
 
 /* ---------- day screen: one session, nothing else ---------- */
+let LAST = {};
 const dayPath = (w, d) => `#/w/${w}/d/${d}`;
-function step(w, d, k) { let x = (w - 1) * 7 + d + k; x = Math.max(0, Math.min(69, x)); return [Math.floor(x / 7) + 1, x % 7]; }
+const nWeeks = () => weeksOf(blockById(ui.b)).length;
+function step(w, d, k) { let x = (w - 1) * 7 + d + k; x = Math.max(0, Math.min(nWeeks() * 7 - 1, x)); return [Math.floor(x / 7) + 1, x % 7]; }
 export function stepDay(k) { const [w, d] = step(ui.week, ui.dayIdx, k); if (w !== ui.week || d !== ui.dayIdx) go(dayPath(w, d), { replace: true }); }
 
 export function renderDay(w, d, isTodayTab) {
+  w = Math.max(1, Math.min(nWeeks(), w));
   ui.week = w; ui.dayIdx = d;
+  const W = weekRef(ui.b, w);
+  LAST = W.pause ? {} : lastLogs(W, d);
   const app = document.getElementById("app"); app.className = "wrap day";
-  const a = slots(w), sess = a[d], s = sess >= 0 ? DAYS[sess] : null, P = PHASES[phaseOf(w)];
-  const date = dayDate(w, d), acts = ACTS[iso(date)] || [], t = todayWD(), isToday = t && t.w === w && t.d === d;
-  const [n, tot] = progress(w, sess);
+  const a = W.pause ? [-1, -1, -1, -1, -1, -1, -1] : slots(W), sess = a[d], s = sess >= 0 ? DAYS[sess] : null, P = W.pause ? { rir: "Paused" } : PHASES[phaseOf(W.pw)];
+  const date = dayDate(W, d), acts = ACTS[iso(date)] || [], t = todayWD(), isToday = t && t.b === ui.b && t.w === w && t.d === d;
+  const [n, tot] = progress(W, sess);
   const [pw, pd] = step(w, d, -1), [nw, nd] = step(w, d, 1);
-  const flag = FLAGS[`${w}-${d}`];
+  const flag = flagFor(date);
 
   let h = topbar({
     title: isToday ? "Today" : `${DOW[d]}, ${fmt(date)}`,
-    sub: isToday ? `${DOW[d]}, ${fmt(date)} · Wk ${w}` : `Week ${w} · ${phaseName(w)}`,
-    back: isTodayTab ? null : { label: `Week ${w}` },
+    sub: isToday ? `${DOW[d]}, ${fmt(date)} · ${weekLabel(W)}` : W.pause ? "Paused week" : `${weekLabel(W)} · ${phaseName(W.pw)}`,
+    back: isTodayTab ? null : { label: weekLabel(W) },
     right: `<button class="iconbtn" id="opts" aria-label="Day options">${ICON.more}</button>`,
     progress: s && s.kind !== "run" && tot ? n / tot : null
   });
-  h += `<div class="daynav"><button class="stepbtn" data-step="-1" ${w === 1 && d === 0 ? "disabled" : ""} aria-label="Previous day, ${DOW[pd]}">${ICON.prev}<span>${DOW[pd]} ${dayDate(pw, pd).getDate()}</span></button>
+  h += `<div class="daynav"><button class="stepbtn" data-step="-1" ${w === 1 && d === 0 ? "disabled" : ""} aria-label="Previous day, ${DOW[pd]}">${ICON.prev}<span>${DOW[pd]} ${dayDate(weekRef(ui.b, pw), pd).getDate()}</span></button>
     ${!isToday && t ? `<button class="pill" id="jumptoday">Today</button>` : ""}
-    <button class="stepbtn" data-step="1" ${w === 10 && d === 6 ? "disabled" : ""} aria-label="Next day, ${DOW[nd]}"><span>${DOW[nd]} ${dayDate(nw, nd).getDate()}</span>${ICON.next}</button></div>`;
+    <button class="stepbtn" data-step="1" ${w === nWeeks() && d === 6 ? "disabled" : ""} aria-label="Next day, ${DOW[nd]}"><span>${DOW[nd]} ${dayDate(weekRef(ui.b, nw), nd).getDate()}</span>${ICON.next}</button></div>`;
 
   const strava = acts.length ? `<div class="strava"><div class="lbl">From Strava<em>${SYNC ? "synced " + SYNC : ""}</em></div>${acts.map(x => `<div class="act"><span class="aname">${esc(x.name || x.type)}</span><span class="astat">${[x.distance_mi ? x.distance_mi + " mi" : "", x.moving_time || "", x.pace ? x.pace + "/mi" : "", x.avg_hr ? x.avg_hr + " bpm" : ""].filter(Boolean).map(esc).join(" · ")}</span></div>`).join("")}</div>` : "";
 
   if (!s) {
     const skipped = sess === -2;
-    h += `<section class="hero"><h2 class="dim">${skipped ? "Skipped" : "Rest Day"}</h2><div class="meta">${flag ? `<span class="flag">${flag}</span>` : ""}<span>${P.rir}</span></div></section>
-      <div class="longrun">${skipped ? "Skipped. Got 20 minutes? Pump Only keeps the priority muscles moving." : "Nothing scheduled. Easy run or full rest."}</div>${strava}
+    h += `<section class="hero"><h2 class="dim">${W.pause ? "Paused" : skipped ? "Skipped" : "Rest Day"}</h2><div class="meta">${flag ? `<span class="flag">${flag}</span>` : ""}<span>${P.rir}</span></div></section>
+      <div class="longrun">${W.pause ? "Paused week. The plan picks up where you left off next week." : skipped ? "Skipped. Got 20 minutes? Pump Only keeps the priority muscles moving." : "Nothing scheduled. Easy run or full rest."}</div>${strava}
       ${skipped ? `<button class="bigbtn ghost" data-quick="S5"><b>20 min</b> Pump Only</button>` : ""}`;
     app.innerHTML = h; bindDay(sess); keepAwake(false); return;
   }
@@ -56,8 +62,8 @@ export function renderDay(w, d, isTodayTab) {
   const moved = sess !== d ? `<span class="hot">Moved from ${DOW[sess]}</span>` : "";
   h += `<section class="hero"><h2>${s.name}</h2><div class="meta"><span class="hot">${P.rir}</span>${moved}<span>${s.mins} min</span><span>${s.run}</span>${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>`;
   h += strava;
-  const warmDone = KNEE.filter((_, i) => sget(warmKey(w, sess, i))).length;
-  h += `<div class="lbl">Knee Ready<em>${warmDone}/${KNEE.length} · 10 min</em></div><div class="warm">${KNEE.map(([id, dz], i) => { const on = !!sget(warmKey(w, sess, i)); return `<div class="wcard${on ? " on" : ""}"><button class="thumb" data-ex="${id}" aria-label="How to do ${esc(EX[id].name)}">${thumbHTML(id)}</button><div class="wb"><span><span class="wn">${EX[id].name}</span><br><span class="wd">${dz}</span></span><button class="chk" aria-label="${esc(EX[id].name)} done" aria-pressed="${on}" data-warm="${i}">${CHECK}</button></div></div>`; }).join("")}</div>`;
+  const warmDone = KNEE.filter((_, i) => sget(warmKey(W, sess, i))).length;
+  h += `<div class="lbl">Knee Ready<em>${warmDone}/${KNEE.length} · 10 min</em></div><div class="warm">${KNEE.map(([id, dz], i) => { const on = !!sget(warmKey(W, sess, i)); return `<div class="wcard${on ? " on" : ""}"><button class="thumb" data-ex="${id}" aria-label="How to do ${esc(EX[id].name)}">${thumbHTML(id)}</button><div class="wb"><span><span class="wn">${EX[id].name}</span><br><span class="wd">${dz}</span></span><button class="chk" aria-label="${esc(EX[id].name)} done" aria-pressed="${on}" data-warm="${i}">${CHECK}</button></div></div>`; }).join("")}</div>`;
   h += `<div class="lbl">Workout<em>${n}/${tot} sets</em></div><div class="list">`;
   let i = 0;
   while (i < s.items.length) {
@@ -75,16 +81,17 @@ export function renderDay(w, d, isTodayTab) {
 }
 
 export function exCard(it, i, sess) {
-  const w = ui.week, ds = dose(it, w); if (!ds) return "";
-  const x = exFor(it, w, sess, i), e = EX[x], subbed = x !== it.x;
-  const extra = extraSets(w, sess, i), total = ds.s + extra;
+  const W = weekRef(ui.b, ui.week), ds = dose(it, W.pw); if (!ds) return "";
+  const x = exFor(it, W, sess, i), e = EX[x], subbed = x !== it.x;
+  const extra = extraSets(W, sess, i), total = ds.s + extra;
+  const L = (LAST[x] || []).filter(Boolean);
   let all = true, rows = "";
   for (let s = 0; s < total; s++) {
-    const v = sget(setKey(w, sess, i, s)) || {};
-    const prev = w > 1 ? (sget(setKey(w - 1, sess, i, s)) || {}) : {};
+    const v = sget(setKey(W, sess, i, s)) || {};
+    const prev = (LAST[x] || [])[s] || L[L.length - 1] || {};
     if (!v.d) all = false;
     rows += `<div class="set${v.d ? " is-done" : ""}${s >= ds.s ? " extra" : ""}"><span class="n">${s + 1}</span>
-      <label class="field"><input inputmode="decimal" enterkeyhint="next" aria-label="Set ${s + 1} weight" data-i="${i}" data-s="${s}" data-f="w" value="${esc(v.w)}" placeholder="${esc(prev.w || (it.bw && !subbed ? "BW" : "—"))}"><span>lb</span></label>
+      <label class="field"><input inputmode="decimal" enterkeyhint="next" aria-label="Set ${s + 1} weight" data-i="${i}" data-s="${s}" data-f="w" value="${esc(v.w || prev.w || "")}" placeholder="${it.bw && !subbed ? "BW" : "—"}"><span>lb</span></label>
       <label class="field"><input inputmode="numeric" enterkeyhint="${s + 1 < total ? "next" : "done"}" aria-label="Set ${s + 1} reps" data-i="${i}" data-s="${s}" data-f="r" value="${esc(v.r)}" placeholder="${esc(ds.r)}"><span>reps</span></label>
       <button class="chk" aria-label="Set ${s + 1} done" aria-pressed="${!!v.d}" data-i="${i}" data-s="${s}" data-done="1">${CHECK}</button></div>`;
   }
@@ -101,9 +108,9 @@ function restFor(items, i) {
 }
 
 function bindDay(sess) {
-  const app = document.getElementById("app"), w = ui.week, d = ui.dayIdx;
+  const app = document.getElementById("app"), W = weekRef(ui.b, ui.week), w = W, d = ui.dayIdx;
   const on = (sel, fn) => app.querySelectorAll(sel).forEach(b => b.onclick = () => fn(b));
-  const tb = document.getElementById("tb-back"); if (tb) tb.onclick = () => back(`#/w/${w}`);
+  const tb = document.getElementById("tb-back"); if (tb) tb.onclick = () => back(`#/w/${ui.week}`);
   on("[data-step]", b => stepDay(+b.dataset.step));
   const jt = document.getElementById("jumptoday"); if (jt) jt.onclick = () => go("#/today");
   on("[data-ex]", b => go(`#/ex/${b.dataset.ex}`));
@@ -114,7 +121,7 @@ function bindDay(sess) {
   on("[data-done]", b => {
     const i = +b.dataset.i, s = +b.dataset.s, k = setKey(w, sess, i, s), v = Object.assign({}, sget(k) || {});
     const items = DAYS[sess].items;
-    if (!v.d) { if (!v.r) v.r = dose(items[i], w).r; v.d = 1; buzz(); const r = restFor(items, i); if (r) startRest(r); } else v.d = 0;
+    if (!v.d) { if (!v.r) v.r = dose(items[i], W.pw).r; const wi = app.querySelector(`input[data-i="${i}"][data-s="${s}"][data-f="w"]`); if (!v.w && wi && wi.value.trim()) v.w = wi.value.trim(); v.d = 1; buzz(); const r = restFor(items, i); if (r) startRest(r); } else v.d = 0;
     sset(k, v); keep(rerender);
   });
   app.querySelectorAll("input[data-f]").forEach(inp => {
@@ -145,7 +152,7 @@ function quickSheet(keys) {
 }
 
 function dayOptions(sess) {
-  const w = ui.week, d = ui.dayIdx, s = sess >= 0 ? DAYS[sess] : null, lifting = s && s.kind !== "run";
+  const w = weekRef(ui.b, ui.week), d = ui.dayIdx, s = sess >= 0 ? DAYS[sess] : null, lifting = s && s.kind !== "run" && !w.pause;
   const changed = !!sget(schedKey(w));
   let mode = null;
   openSheet({ title: `${DOW[d]} options`, render: (body, api) => {
@@ -173,7 +180,7 @@ function dayOptions(sess) {
       let msg = "";
       if (k === "push") msg = pushToTomorrow(w, d);
       if (k === "skip") { skipDay(w, d); msg = "Skipped. The rest of the week stays put."; }
-      if (k === "clear") { const g = `w${w}s${sess}`; STORE[g] = {}; persistLocal(); dirty.add(g); flush(); msg = "Session log cleared."; }
+      if (k === "clear") { const g = `${w.key}s${sess}`; STORE[g] = {}; persistLocal(); dirty.add(g); flush(); msg = "Session log cleared."; }
       if (k === "reset") { sset(schedKey(w), null); msg = "Week back to the original plan."; }
       api.close(); toast(msg); setTimeout(rerender, 0);
     });
@@ -181,12 +188,12 @@ function dayOptions(sess) {
 }
 
 function subSheet(sess, i) {
-  const w = ui.week, it = DAYS[sess].items[i], cur = exFor(it, w, sess, i);
+  const w = weekRef(ui.b, ui.week), it = DAYS[sess].items[i], cur = exFor(it, w, sess, i);
   let q = "";
   openSheet({ title: `Swap ${EX[it.x].name}`, tall: true, render: (body, api) => {
     const first = !body.firstChild;
     if (first) {
-      body.innerHTML = `<label class="search">${ICON.search}<input type="search" placeholder="Search exercises" aria-label="Search exercises" enterkeyhint="search"></label><div class="subnote">Applies from week ${w} on</div><div class="subres"></div>`;
+      body.innerHTML = `<label class="search">${ICON.search}<input type="search" placeholder="Search exercises" aria-label="Search exercises" enterkeyhint="search"></label><div class="subnote">Applies from ${weekLabel(w).toLowerCase()} on</div><div class="subres"></div>`;
       body.querySelector("input").oninput = e => { q = e.target.value.trim().toLowerCase(); api.refresh(); };
     }
     const match = id => !q || (EX[id].name + " " + EX[id].muscles.join(" ") + " " + EX[id].equip).toLowerCase().includes(q);
@@ -198,7 +205,7 @@ function subSheet(sess, i) {
       + (!close.length && !rest.length ? `<div class="optnote">No match for “${esc(q)}”.</div>` : "");
     body.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => {
       const id = b.dataset.pick; setSub(w, sess, i, id, it.x); api.close();
-      toast(id === it.x ? `Back to ${EX[it.x].name}.` : `${EX[id].name} from week ${w} on.`);
+      toast(id === it.x ? `Back to ${EX[it.x].name}.` : `${EX[id].name} from ${weekLabel(w).toLowerCase()} on.`);
       setTimeout(() => { keep(rerender); const el = document.getElementById(`ex-${i}`); if (el) el.scrollIntoView({ block: "center" }); }, 0);
     });
   } });

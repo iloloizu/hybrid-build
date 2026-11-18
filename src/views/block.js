@@ -1,31 +1,58 @@
 import { ui } from "../state.js";
-import { DAYS, PHASES, phaseOf, phaseName, dayDate, fmt, START } from "../plan/plan.js";
+import { PHASES, phaseOf, phaseName, fmt } from "../plan/plan.js";
+import { blocks, blockById, weeksOf, weekLabel, dayDate, blockEnd, parseISO, startBlock, removeBlock, nextMonday } from "../plan/blocks.js";
 import { slots } from "../schedule.js";
 import { progress } from "./common.js";
 import { go } from "../router.js";
 import { topbar } from "../ui/topbar.js";
+import { toast } from "../ui/toast.js";
+import { openSheet } from "../ui/sheet.js";
 import { todayWD } from "./today.js";
 import { saveBar, bindSaveBar } from "./savebar.js";
+import { rerender } from "./app.js";
 
-/* ---------- block screen: the 10 weeks by phase, plus your data ---------- */
-export function weekProgress(w) {
-  let n = 0, t = 0; slots(w).forEach(s => { const [a, b] = progress(w, s); n += a; t += b; }); return [n, t];
+/* ---------- block screen: weeks by phase, other blocks, your data ---------- */
+export function weekProgress(W) {
+  if (W.pause) return [0, 0];
+  let n = 0, t = 0; slots(W).forEach(s => { const [a, b] = progress(W, s); n += a; t += b; }); return [n, t];
 }
 export function renderBlock() {
   const app = document.getElementById("app"); app.className = "wrap block";
-  const t = todayWD();
-  let h = topbar({ title: "The Block", sub: `${fmt(START)} – ${fmt(dayDate(10, 6))}` });
+  const B = blockById(ui.b), all = blocks(), t = todayWD();
+  let h = topbar({ title: `Block ${B.id}`, sub: `${fmt(parseISO(B.start))} – ${fmt(blockEnd(B))}` });
+  if (all.length > 1) h += `<div class="chips noswipe" role="group" aria-label="Blocks">${all.map(b => `<button data-b="${b.id}" aria-pressed="${b.id === B.id}">Block ${b.id}</button>`).join("")}</div>`;
   let last = null;
   h += `<div class="weeklist">`;
-  for (let w = 1; w <= 10; w++) {
-    const name = phaseName(w), ph = phaseOf(w), [n, tot] = weekProgress(w), now = t && t.w === w;
-    if (name !== last) { h += `<div class="phasehead ${ph}"><b>${name}</b><span>${PHASES[ph].rule}</span></div>`; last = name; }
-    h += `<button class="weekrow${now ? " now" : ""} ${ph}" data-w="${w}"><span class="pbib">${String(w).padStart(2, "0")}</span>
-      <span class="dn"><b>${fmt(dayDate(w, 0))} – ${fmt(dayDate(w, 6))}</b><small>${now ? "<em>This week</em> · " : ""}${PHASES[ph].rir}</small><i class="bar"><em style="width:${tot ? n / tot * 100 : 0}%"></em></i></span>
+  for (const W of weeksOf(B)) {
+    const now = t && t.b === B.id && t.w === W.cw;
+    const name = W.pause ? "Paused" : phaseName(W.pw), ph = W.pause ? "cut" : phaseOf(W.pw), [n, tot] = weekProgress(W);
+    if (name !== last && !W.pause) { h += `<div class="phasehead ${ph}"><b>${name}</b><span>${PHASES[ph].rule}</span></div>`; last = name; }
+    h += `<button class="weekrow${now ? " now" : ""} ${ph}" data-w="${W.cw}"><span class="pbib">${W.pause ? "II" : String(W.pw).padStart(2, "0")}</span>
+      <span class="dn"><b>${fmt(dayDate(W, 0))} – ${fmt(dayDate(W, 6))}</b><small>${now ? "<em>This week</em> · " : ""}${W.pause ? "Paused week" : (W.rep ? "Repeat · " : "") + PHASES[ph].rir}</small>${W.pause ? "" : `<i class="bar"><em style="width:${tot ? n / tot * 100 : 0}%"></em></i>`}</span>
       <span class="ds"><b>${n ? `${n}/${tot}` : ""}</b></span></button>`;
   }
-  h += `</div><div class="lbl">Your data</div>` + saveBar();
+  h += `</div><button class="bigbtn ghost" id="newblock">Start a new block</button>`;
+  if (B.id !== 1 && B.id === Math.max(...all.map(b => b.id))) h += `<button class="textbtn" id="delblock">Delete Block ${B.id}</button>`;
+  h += `<div class="lbl">Your data</div>` + saveBar();
   app.innerHTML = h;
   app.querySelectorAll("[data-w]").forEach(b => b.onclick = () => go(`#/w/${b.dataset.w}`));
+  app.querySelectorAll("[data-b]").forEach(b => b.onclick = () => { ui.b = +b.dataset.b; ui.week = 1; rerender(); });
+  document.getElementById("newblock").onclick = newBlockSheet;
+  const del = document.getElementById("delblock");
+  if (del) del.onclick = () => { if (!confirm(`Delete Block ${B.id}? Sets you logged in it stay in your backup data but won't show.`)) return; removeBlock(B.id); ui.b = 1; toast(`Block ${B.id} deleted.`); rerender(); };
   bindSaveBar();
+}
+
+function newBlockSheet() {
+  openSheet({ title: "New block", render: (body, api) => {
+    body.innerHTML = `<div class="optnote">Same 10 weeks from Rust Off. Your logs stay, and your last weights show up as hints.</div>
+      <label class="datefield"><span>Starts</span><input type="date" id="bstart" value="${nextMonday()}"></label>
+      <div class="optnote">Starting on a date inside the current block replaces the rest of it from that day.</div>
+      <button class="bigbtn" id="bgo">Start block</button>`;
+    body.querySelector("#bgo").onclick = () => {
+      const v = body.querySelector("#bstart").value; if (!v) return;
+      if (parseISO(v).getDay() !== 1 && !confirm("That's not a Monday. Weeks will run from that weekday. Start anyway?")) return;
+      const id = startBlock(v); ui.b = id; ui.week = 1; api.close(); toast(`Block ${id} starts ${fmt(parseISO(v))}.`); setTimeout(() => go("#/block", { replace: true }), 0);
+    };
+  } });
 }

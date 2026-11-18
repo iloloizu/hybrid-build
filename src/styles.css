@@ -346,3 +346,15 @@ button, a, .chk { touch-action: manipulation; }
   .sheet-panel { left: 92px; }
   .exview > .player { grid-row: 3 / span 4; }
 }
+
+/* blocks */
+.wkdots i.pause { background: #3a3a3e; border-radius: 2px; }
+.optrow small { display: block; font: 600 12px var(--body); color: var(--muted); margin-top: 1px; }
+.dn small em.fl { color: var(--done); }
+.datefield { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 6px 6px 6px 14px; }
+.datefield span { font: 800 11px var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.datefield input { background: var(--card-2); color: var(--ink); border: 0; border-radius: 8px; padding: 10px; font: 700 16px var(--body); color-scheme: dark; }
+.chips.noswipe { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+.chips.noswipe button { flex: none; }
+.exlast { display: block; font: 700 11px var(--body); color: var(--muted); letter-spacing: .04em; margin-top: 2px; }
+.exlast b { color: var(--ink); font-weight: 800; }

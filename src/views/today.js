@@ -1,11 +1,4 @@
-import { START } from "../plan/plan.js";
-// Today's week (1-10) and day (0 = Mon), or null outside the block.
-export function todayWD(now = new Date()) {
-  const diff = Math.floor((new Date(now.getFullYear(), now.getMonth(), now.getDate()) - START) / 86400000);
-  return diff >= 0 && diff < 70 ? { w: Math.floor(diff / 7) + 1, d: diff % 7 } : null;
-}
-// Where the Today tab lands: today, or the nearest end of the block.
-export function todayTarget(now = new Date()) {
-  const t = todayWD(now); if (t) return t;
-  return now < START ? { w: 1, d: 0 } : { w: 10, d: 6 };
-}
+import { findDate, landing } from "../plan/blocks.js";
+// Kept for older call sites: today's block/week/day, or null outside every block.
+export const todayWD = (now = new Date()) => { const f = findDate(now); return f ? { b: f.b, w: f.cw, d: f.d } : null; };
+export const todayTarget = (now = new Date()) => { const f = landing(now); return { b: f.b, w: f.cw, d: f.d }; };

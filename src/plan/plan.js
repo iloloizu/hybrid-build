@@ -122,7 +122,9 @@ export function dose(it, w) {
   const s = { re: it.s, build: 3, cut: 2, heavy: it.tag === "pri" ? 4 : 3, peak: 3, test: 2 }[ph];
   return { s, r: it.r, note: ph === "heavy" ? "last set: fail + partials" : ph === "build" ? "last set to failure" : "" };
 }
-export const FLAGS = { "2-3": "Thanksgiving", "6-4": "Christmas", "7-4": "New Year's Day" };
+// Holidays by date (month-day), so they land right in any block.
+export const FLAGS = { "11-26": "Thanksgiving", "12-25": "Christmas", "01-01": "New Year's Day", "07-04": "July 4th", "05-25": "Memorial Day" };
+export const flagFor = dt => FLAGS[`${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`];
 export const START = new Date(2026, 10, 16);
 export const dayDate = (w, d) => new Date(START.getFullYear(), START.getMonth(), START.getDate() + (w - 1) * 7 + d);
 export const fmt = dt => dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
