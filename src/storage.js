@@ -30,9 +30,11 @@ export async function flush() {
   } catch (e) { /* stays local */ }
   flushing = false;
 }
-export const setKey = (w, s, i, n) => `w${w}s${s}|${i}-${n}`;
-export const warmKey = (w, s, i) => `w${w}s${s}|warm-${i}`;
-export const schedKey = w => `sched${w}|slots`;
+// w is a week key ("w3", "b2w3r1") or, for block 1, a plain week number.
+const wk = w => typeof w === "number" ? "w" + w : typeof w === "object" ? w.key : w;
+export const setKey = (w, s, i, n) => `${wk(w)}s${s}|${i}-${n}`;
+export const warmKey = (w, s, i) => `${wk(w)}s${s}|warm-${i}`;
+export const schedKey = w => { const k = wk(w); return `sched${/^w\d+$/.test(k) ? k.slice(1) : k}|slots`; };
 
 /* ---------- connect: synced logs + Strava feed (Claude artifact host only) ---------- */
 // onRemote is called whenever synced data changes, so the active view can re-render.
@@ -60,7 +62,7 @@ export async function connect(onRemote) {
 }
 
 /* ---------- backup: download all logs as a file, restore from one ---------- */
-const DOC_RE = /^(w\d+s\d+|sched\d+)$/;
+const DOC_RE = /^((b\d+)?w\d+(r\d+)?s\d+|sched[\w]+|blocks|checkin)$/;
 export function backupJSON() { return JSON.stringify({ app: "hybrid-build", v: 1, exported_at: new Date().toISOString(), data: STORE }, null, 1); }
 // Returns the number of docs restored, or throws with a short reason.
 export function restoreJSON(text) {

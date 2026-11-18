@@ -3,10 +3,11 @@ import { EX } from "../plan/exercises.js";
 import { DAYS, dose } from "../plan/plan.js";
 import { sget, setKey } from "../storage.js";
 import { totalSets } from "../plan/custom.js";
+import { ref } from "../plan/blocks.js";
 
 export function progress(w, s) {
-  let n = 0, t = 0; if (s < 0) return [0, 0];
-  DAYS[s].items.forEach((it, i) => { const ds = dose(it, w); if (!ds) return; const n0 = totalSets(it, w, s, i); for (let k = 0; k < n0; k++) { t++; const v = sget(setKey(w, s, i, k)); if (v && v.d) n++; } });
+  let n = 0, t = 0; if (s < 0 || ref(w).pause) return [0, 0];
+  DAYS[s].items.forEach((it, i) => { const ds = dose(it, ref(w).pw); if (!ds) return; const n0 = totalSets(it, w, s, i); for (let k = 0; k < n0; k++) { t++; const v = sget(setKey(w, s, i, k)); if (v && v.d) n++; } });
   return [n, t];
 }
 export const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));

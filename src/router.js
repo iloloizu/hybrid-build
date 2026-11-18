@@ -11,7 +11,7 @@ export function parse(h) {
   const p = h.replace(/^#\/?/, "").split("/").filter(Boolean);
   const wk = +p[1], dy = +p[3];
   if (p[0] === "week") return { name: "week" };
-  if (p[0] === "w" && wk >= 1 && wk <= 10 && Number.isInteger(wk)) {
+  if (p[0] === "w" && wk >= 1 && wk <= 60 && Number.isInteger(wk)) {
     if (p[2] === "d" && dy >= 0 && dy <= 6 && Number.isInteger(dy) && p[3] !== "") return { name: "day", w: wk, d: dy };
     return { name: "week", w: wk };
   }
