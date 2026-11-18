@@ -4,7 +4,8 @@ import { KNEE, SWAPS, DAYS, DOW, PHASES, phaseOf, phaseName, dose, flagFor, fmt,
 import { weekRef, prevRef, weekLabel, weeksOf, blockById, dayDate } from "../plan/blocks.js";
 import { STORE, ACTS, SYNC, dirty, persistLocal, sget, sset, flush, setKey, warmKey, schedKey } from "../storage.js";
 import { exFor, extraSets, addSet, removeSet, setSub, similar, totalSets, lastLogs } from "../plan/custom.js";
-import { slots, pushToTomorrow, swapDays, skipDay } from "../schedule.js";
+import { slots, pushToTomorrow, pushPlan, swapDays, skipDay } from "../schedule.js";
+import { getRun, setRun, pace } from "../plan/runs.js";
 import { progress, esc, thumbHTML, CHECK, keep } from "./common.js";
 import { go, back } from "../router.js";
 import { topbar } from "../ui/topbar.js";
@@ -46,22 +47,25 @@ export function renderDay(w, d, isTodayTab) {
     ${!isToday && t ? `<button class="pill" id="jumptoday">Today</button>` : ""}
     <button class="stepbtn" data-step="1" ${w === nWeeks() && d === 6 ? "disabled" : ""} aria-label="Next day, ${DOW[nd]}"><span>${DOW[nd]} ${dayDate(weekRef(ui.b, nw), nd).getDate()}</span>${ICON.next}</button></div>`;
 
+  const R = getRun(iso(date)) || {};
+  const runline = acts.length || W.pause ? "" : `<div class="runlog"><span class="rl-lbl">Run</span><label class="field"><input inputmode="decimal" enterkeyhint="next" id="run-mi" aria-label="Miles run" value="${esc(R.mi)}" placeholder="—"><span>mi</span></label><label class="field"><input inputmode="numeric" enterkeyhint="done" id="run-min" aria-label="Minutes run" value="${esc(R.min)}" placeholder="—"><span>min</span></label><span class="rl-pace" id="run-pace">${pace(R)}</span></div>`;
   const strava = acts.length ? `<div class="strava"><div class="lbl">From Strava<em>${SYNC ? "synced " + SYNC : ""}</em></div>${acts.map(x => `<div class="act"><span class="aname">${esc(x.name || x.type)}</span><span class="astat">${[x.distance_mi ? x.distance_mi + " mi" : "", x.moving_time || "", x.pace ? x.pace + "/mi" : "", x.avg_hr ? x.avg_hr + " bpm" : ""].filter(Boolean).map(esc).join(" · ")}</span></div>`).join("")}</div>` : "";
 
   if (!s) {
     const skipped = sess === -2;
-    h += `<section class="hero"><h2 class="dim">${W.pause ? "Paused" : skipped ? "Skipped" : "Rest Day"}</h2><div class="meta">${flag ? `<span class="flag">${flag}</span>` : ""}<span>${P.rir}</span></div></section>
+    h += `<section class="hero"><h2 class="dim">${W.pause ? "Paused" : skipped ? "Skipped" : "Rest Day"}</h2><div class="meta">${flag ? `<span class="flag">${flag}</span>` : ""}<span>${P.rir}</span></div></section>${runline}
       <div class="longrun">${W.pause ? "Paused week. The plan picks up where you left off next week." : skipped ? "Skipped. Got 20 minutes? Pump Only keeps the priority muscles moving." : "Nothing scheduled. Easy run or full rest."}</div>${strava}
       ${skipped ? `<button class="bigbtn ghost" data-quick="S5"><b>20 min</b> Pump Only</button>` : ""}`;
     app.innerHTML = h; bindDay(sess); keepAwake(false); return;
   }
   if (s.kind === "run") {
-    h += `<section class="hero"><h2 class="run">${s.name}</h2><div class="meta"><span>Long run</span><span>No lifting</span>${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>${strava || `<div class="longrun">Long run day. It shows up here once Strava syncs.</div>`}`;
+    h += `<section class="hero"><h2 class="run">${s.name}</h2><div class="meta"><span>Long run</span><span>No lifting</span>${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>${strava || runline}`;
     app.innerHTML = h; bindDay(sess); keepAwake(false); return;
   }
   const moved = sess !== d ? `<span class="hot">Moved from ${DOW[sess]}</span>` : "";
   h += `<section class="hero"><h2>${s.name}</h2><div class="meta"><span class="hot">${P.rir}</span>${moved}<span>${s.mins} min</span><span>${s.run}</span>${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>`;
-  h += strava;
+  if (!(n === tot && tot)) h += `<button class="cantbtn" id="cant">Can't train today?</button>`;
+  h += strava + runline;
   const warmDone = KNEE.filter((_, i) => sget(warmKey(W, sess, i))).length;
   h += `<div class="lbl">Knee Ready<em>${warmDone}/${KNEE.length} · 10 min</em></div><div class="warm">${KNEE.map(([id, dz], i) => { const on = !!sget(warmKey(W, sess, i)); return `<div class="wcard${on ? " on" : ""}"><button class="thumb" data-ex="${id}" aria-label="How to do ${esc(EX[id].name)}">${thumbHTML(id)}</button><div class="wb"><span><span class="wn">${EX[id].name}</span><br><span class="wd">${dz}</span></span><button class="chk" aria-label="${esc(EX[id].name)} done" aria-pressed="${on}" data-warm="${i}">${CHECK}</button></div></div>`; }).join("")}</div>`;
   h += `<div class="lbl">Workout<em>${n}/${tot} sets</em></div><div class="list">`;
@@ -112,6 +116,10 @@ function bindDay(sess) {
   const on = (sel, fn) => app.querySelectorAll(sel).forEach(b => b.onclick = () => fn(b));
   const tb = document.getElementById("tb-back"); if (tb) tb.onclick = () => back(`#/w/${ui.week}`);
   on("[data-step]", b => stepDay(+b.dataset.step));
+  const cant = document.getElementById("cant"); if (cant) cant.onclick = () => cantSheet(sess);
+  const rmi = document.getElementById("run-mi"), rmin = document.getElementById("run-min");
+  if (rmi) { const date = iso(dayDate(W, d)), save = () => { const v = { mi: rmi.value.trim(), min: rmin.value.trim() }; setRun(date, v); document.getElementById("run-pace").textContent = pace(v); };
+    rmi.onchange = save; rmin.onchange = save; rmi.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); rmin.focus(); } }; rmin.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); rmin.blur(); } }; }
   const jt = document.getElementById("jumptoday"); if (jt) jt.onclick = () => go("#/today");
   on("[data-ex]", b => go(`#/ex/${b.dataset.ex}`));
   document.getElementById("opts").onclick = () => dayOptions(sess);
@@ -143,6 +151,24 @@ function bindDay(sess) {
 }
 
 /* ---------- sheets ---------- */
+// Sick, wiped or busy: see what the week becomes before moving or skipping.
+function cantSheet(sess) {
+  const w = weekRef(ui.b, ui.week), d = ui.dayIdx, s = DAYS[sess], a = slots(w), { a: after, dropped, past } = pushPlan(a, d);
+  const row = i => { const x = after[i], was = a[i], name = x >= 0 ? DAYS[x].name : "Rest"; return `<li class="${x !== was ? "chg" : ""}"><b>${DOW[i]}</b><span>${name}</span></li>`; };
+  openSheet({ title: "Can't train today?", render: (body, api) => {
+    body.innerHTML = `<div class="optnote">Sick or wiped out? Rest. If you're still down tomorrow, push again.</div>
+      <div class="cantopt"><div class="lbl">Move ${s.name} to tomorrow</div>
+        ${past ? `<div class="optnote">Nowhere left to move it this week, so it drops.</div>` : `<ol class="preview">${[d, d + 1, d + 2, d + 3, d + 4, d + 5].filter(i => i <= 5).map(row).join("")}</ol>${dropped != null ? `<div class="optnote drop">${DAYS[dropped].name} drops this week to make room.</div>` : ""}`}
+        <button class="bigbtn" data-c="push">${past ? "Drop it" : "Move it"}</button></div>
+      <div class="cantopt"><div class="lbl">Skip ${s.name}</div><div class="optnote">${s.rank <= 2 ? "It's a priority session, so moving it usually beats skipping." : "The rest of the week stays where it is."}</div>
+        <button class="bigbtn ghost" data-c="skip">Skip it</button></div>`;
+    body.querySelectorAll("[data-c]").forEach(b => b.onclick = () => {
+      const msg = b.dataset.c === "push" ? pushToTomorrow(w, d) : (skipDay(w, d), "Skipped. Rest up.");
+      api.close(); toast(msg); setTimeout(rerender, 0);
+    });
+  } });
+}
+
 function quickSheet(keys) {
   let openK = keys.length === 1 ? keys[0] : null;
   openSheet({ title: "Short on time", render: (body, api) => {
