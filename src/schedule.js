@@ -5,9 +5,10 @@ import { sget, sset, schedKey } from "./storage.js";
 export function slots(w) { const v = sget(schedKey(w)); return Array.isArray(v) && v.length === 7 ? v.slice() : [0, 1, 2, 3, 4, 5, 6]; }
 export function saveSlots(w, arr) { const def = arr.every((x, i) => x === i); sset(schedKey(w), def ? null : arr); }
 // value: session index, or -1 = rest (moved), -2 = skipped
-export function pushToTomorrow(w, d) {
-  const a = slots(w); const lastLift = 5;
-  if (d >= lastLift) { a[d] = -1; return saveSlots(w, a), "Pushed past Saturday, so it's dropped this week."; }
+// Pure version: what the week looks like after pushing day d. Returns { a, dropped }.
+export function pushPlan(a0, d) {
+  const a = a0.slice(), lastLift = 5;
+  if (d >= lastLift) { const dropped = a[d]; a[d] = -1; return { a, dropped, past: true }; }
   const queue = a.slice(d, lastLift + 1).filter(x => x >= 0);
   let dropped = null;
   if (queue.length > lastLift - d) { // too many sessions for the days left: drop the least important
@@ -16,7 +17,12 @@ export function pushToTomorrow(w, d) {
   }
   a[d] = -1;
   for (let k = d + 1; k <= lastLift; k++) a[k] = queue.length ? queue.shift() : -1;
+  return { a, dropped };
+}
+export function pushToTomorrow(w, d) {
+  const { a, dropped, past } = pushPlan(slots(w), d);
   saveSlots(w, a);
+  if (past) return "Pushed past Saturday, so it's dropped this week.";
   return dropped != null ? `${DAYS[dropped].name} dropped this week to make room.` : "Everything after today slid one day.";
 }
 export function swapDays(w, d1, d2) { const a = slots(w); [a[d1], a[d2]] = [a[d2], a[d1]]; saveSlots(w, a); }
