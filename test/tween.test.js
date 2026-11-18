@@ -31,7 +31,8 @@ describe("tweenJ", () => {
   // Known issue carried over from the prototype: in these exercises the elbow snaps
   // to the other IK solution for one frame (1-2 px moves, then a 25-55 px jump).
   // Step 1 keeps behavior identical, so this pins the list; a tweenJ fix should empty it.
-  const KNOWN_ELBOW_SNAPS = ["broadjump", "cablecrunch", "dbpress", "facepull", "incline", "latdb", "machinepress", "ohext", "ohrope", "pecfly", "revpec", "vup", "yraise"];
+  // (dbohext, machineshoulder and smithincline reuse the poses of ohext, dbpress and incline.)
+  const KNOWN_ELBOW_SNAPS = ["broadjump", "cablecrunch", "dbohext", "dbpress", "facepull", "incline", "latdb", "machinepress", "machineshoulder", "ohext", "ohrope", "pecfly", "revpec", "smithincline", "vup", "yraise"];
   it("moves smoothly frame to frame, apart from the known elbow snaps", () => {
     const snaps = new Set();
     for (const [id, e] of entries) {

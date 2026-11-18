@@ -259,3 +259,35 @@ EX.ohrope = Object.assign({}, EX.ohext, { name: "Overhead rope extension", equip
 /* ---------- optional photos (none bundled; animations are the default) ---------- */
 export const PHOTOS = {};
 Object.keys(PHOTOS).forEach(k => { if (EX[k]) EX[k].photo = PHOTOS[k]; });
+
+/* ---------- equipment alternates (substitutes only; the plan doesn't use these) ---------- */
+// Same movement as an existing exercise, so they reuse its poses with the right equipment drawn.
+const alt = (src, extra, props) => Object.assign({}, EX[src], { photo: undefined, _tw: undefined, alt: src }, extra, props ? { props } : {});
+const at = (k, j, x) => Object.assign({ k, at: j }, x);
+EX.dbbench = alt("bench", { name: "Flat DB bench press", muscles: ["Chest", "Front delts", "Triceps"], equip: "Dumbbells + flat bench",
+  steps: ["Sit on the bench with the DBs on your thighs, then lie back and kick them up over your chest.", "Lower until the DBs are level with your chest, elbows about 45° from your sides.", "Press back up and slightly in until your arms are straight.", "Keep your feet planted and shoulder blades pinned the whole set."],
+  cues: ["Elbows 45°, not flared", "Control the bottom"], mistake: "Letting the DBs drift out wide, which loads the shoulder instead of the chest." },
+  BENCH_FLAT.concat([at("db", "ha")]));
+EX.smithincline = alt("incline", { name: "Incline Smith press", muscles: ["Upper chest", "Front delts", "Triceps"], equip: "Smith machine + incline bench at 30°",
+  steps: ["Set the bench at 30° so the bar lines up over your upper chest.", "Unrack with a grip a little wider than shoulders.", "Lower to the top of your chest, elbows slightly tucked.", "Press straight up and re-rack on the last rep."],
+  cues: ["Bar to upper chest", "Shoulder blades back and down"], mistake: "Bench too steep, which turns it into a shoulder press." },
+  BENCH_INC.concat([at("plate", "ha", { r: 13 })]));
+EX.machineshoulder = alt("dbpress", { name: "Machine shoulder press", muscles: ["Front delts", "Side delts", "Triceps"], equip: "Shoulder press machine",
+  steps: ["Set the seat so the handles start at about ear level.", "Sit tall with your back on the pad and grab the handles.", "Press up until your arms are almost locked.", "Lower under control back to ear level."],
+  cues: ["Back on the pad", "Don't lock out hard"], mistake: "Seat too low, so the press starts below the shoulders and pinches them." },
+  [{ k: "rect", x: 56, y: 50, w: 7, h: 90 }, { k: "rect", x: 56, y: 138, w: 46, h: 7 }, { k: "rect", x: 74, y: 145, w: 6, h: 41 }]);
+EX.dbcurl = alt("ezcurl", { name: "Standing DB curl", muscles: ["Biceps", "Forearms"], equip: "Dumbbells",
+  steps: ["Stand tall with a DB in each hand, palms forward.", "Curl both up without moving your elbows forward.", "Squeeze at the top for a beat.", "Lower slowly all the way to straight arms."],
+  cues: ["Elbows pinned", "Full stretch at the bottom"], mistake: "Swinging the hips to get the weight up." },
+  [at("db", "ha")]);
+EX.cablecurl = alt("ezcurl", { name: "Cable curl", muscles: ["Biceps", "Forearms"], equip: "Low cable + straight bar or EZ handle",
+  steps: ["Face a low cable holding the bar with palms up.", "Step back so the stack lifts off at the bottom.", "Curl up without moving your elbows forward.", "Lower slowly until your arms are straight."],
+  cues: ["Elbows pinned", "Constant tension"], mistake: "Leaning back to use body weight on the last reps." },
+  [{ k: "post", x: 176, y1: 40, y2: 186 }, { k: "cable", from: [170, 180], to: "ha" }]);
+EX.dbohext = alt("ohext", { name: "Overhead DB triceps extension", muscles: ["Triceps (long head)"], equip: "One dumbbell (seated or standing)",
+  steps: ["Hold one DB overhead with both hands under the top plate.", "Lower it behind your head by bending only at the elbows.", "Go until you feel a deep stretch in the triceps.", "Extend back up to straight arms."],
+  cues: ["Elbows point forward", "Ribs down"], mistake: "Elbows flaring wide, which shortens the stretch." },
+  [at("db", "ha")]);
+EX.assistpull = alt("pullup", { name: "Assisted pull-up", muscles: ["Lats", "Upper back", "Biceps"], equip: "Assisted pull-up machine or band",
+  steps: ["Set the assist so you can get the reps with 2 left in the tank.", "Hang with a grip just wider than shoulders.", "Pull your chest up toward the bar, elbows driving down.", "Lower all the way to straight arms."],
+  cues: ["Chest to the bar", "Full hang each rep"], mistake: "Too much assist and half reps; use less help and full range." });
