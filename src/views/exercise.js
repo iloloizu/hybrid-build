@@ -29,9 +29,10 @@ export function renderEx(id, from) {
     <div class="player">${stage}<div class="pbar"><button class="pbtn" id="pp" aria-label="Pause">${PAUSE}</button><div class="track"><i id="prog"></i></div><span class="time" id="tm">0:00 / 0:10</span></div></div>
     <div class="stills">${stills}</div>
     <section class="howto"><div class="lbl">Muscles worked</div><div class="bmap">${bodyMap(e.muscles)}</div></section>
-    <section class="howto"><div class="lbl">How to</div><ol>${e.steps.map(x => `<li>${x}</li>`).join("")}</ol></section>
-    <section class="howto"><div class="lbl">Cues</div><ul>${e.cues.map(x => `<li>${x}</li>`).join("")}</ul></section>
-    <section class="howto warn"><div class="lbl">Don't</div><div style="font-size:14.5px">${e.mistake}</div></section>
+    ${e.steps.length ? `<section class="howto"><div class="lbl">How to</div><ol>${e.steps.map(x => `<li>${x}</li>`).join("")}</ol></section>` : ""}
+    ${e.cues.length ? `<section class="howto"><div class="lbl">Cues</div><ul>${e.cues.map(x => `<li>${x}</li>`).join("")}</ul></section>` : ""}
+    ${e.mistake ? `<section class="howto warn"><div class="lbl">Don't</div><div style="font-size:14.5px">${e.mistake}</div></section>` : ""}
+    ${e.fromPlan ? `<section class="howto"><div class="lbl">From ${esc(e.fromPlan)}</div><div style="font-size:14.5px">Animation shows a similar movement (${esc(EX[e.alt] ? EX[e.alt].name : "")}).</div></section>` : ""}
     ${from.workout ? `<button class="backbig" id="back2">Back to workout</button>` : ""}
     <div class="equip">Equipment: ${e.equip}${e.photo ? ` · Photos: <a href="https://github.com/yuhonas/free-exercise-db">Free Exercise DB</a> (public domain)` : ""}</div>`;
   const goBack = () => back(from.path); document.getElementById("tb-back").onclick = goBack; const b2 = document.getElementById("back2"); if (b2) b2.onclick = goBack;

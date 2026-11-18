@@ -17,6 +17,8 @@ export function parse(h) {
   }
   if (p[0] === "block") return { name: "block" };
   if (p[0] === "exercises") return { name: "library" };
+  if (p[0] === "explore") return { name: "explore" };
+  if (p[0] === "plan" && p[1]) return { name: "plan", id: decodeURIComponent(p[1]) };
   if (p[0] === "ex" && p[1]) return { name: "ex", id: decodeURIComponent(p[1]) };
   return { name: "today" };
 }

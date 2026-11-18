@@ -1,7 +1,8 @@
 import { ui } from "../state.js";
 import { DAYS } from "../plan/plan.js";
 import { slots } from "../schedule.js";
-import { weekRef, weekLabel } from "../plan/blocks.js";
+import { weekRef, weekLabel, sessionsFor } from "../plan/blocks.js";
+import { renderExplore, renderPlanPage } from "./explore.js";
 import { route, onRoute, go, start } from "../router.js";
 import { ICON } from "../ui/icons.js";
 import { onSwipe } from "../ui/device.js";
@@ -16,13 +17,14 @@ import { renderPoseGrid } from "./posegrid.js";
 import { todayTarget, todayWD } from "./today.js";
 
 /* ---------- app shell: tabs, routing, swipes ---------- */
-const TABS = [["today", "Today", "#/today"], ["week", "Week", "#/week"], ["block", "Block", "#/block"], ["library", "Exercises", "#/exercises"]];
+const TABS = [["today", "Today", "#/today"], ["week", "Week", "#/week"], ["block", "Block", "#/block"], ["explore", "Explore", "#/explore"], ["library", "Exercises", "#/exercises"]];
 let last = null, from = { label: "Exercises", path: "#/exercises" };
 
 function tabFor(r) {
   if (r.name === "today") return "today";
   if (r.name === "day") { const t = todayWD(); return t && t.b === ui.b && t.w === r.w && t.d === r.d && last && last.tab === "today" ? "today" : "week"; }
   if (r.name === "ex") return (last && last.tab) || "library";
+  if (r.name === "plan") return "explore";
   return r.name === "library" ? "library" : r.name;
 }
 
@@ -36,6 +38,8 @@ function draw(r) {
     case "week": renderWeek(r.w || ui.week || 1); break;
     case "block": renderBlock(); break;
     case "library": renderLibrary(); break;
+    case "explore": renderExplore(); break;
+    case "plan": renderPlanPage(r.id); break;
     case "ex": ui.view = "ex"; renderEx(r.id, from); break;
     case "posegrid": renderPoseGrid(); return;
   }
@@ -44,7 +48,7 @@ function draw(r) {
   // Remember where an exercise screen was opened from, for its back button.
   if (r.name !== "ex") {
     const W = weekRef(ui.b, ui.week), s = (r.name === "day" || r.name === "today") && !W.pause ? slots(W)[ui.dayIdx] : -1;
-    from = r.name === "day" || r.name === "today" ? { label: s >= 0 ? DAYS[s].name : "Day", path: location.hash || "#/today", workout: true } : r.name === "week" ? { label: weekLabel(W), path: location.hash } : r.name === "block" ? { label: `Block ${ui.b}`, path: "#/block" } : { label: "Exercises", path: "#/exercises" };
+    from = r.name === "day" || r.name === "today" ? { label: s >= 0 ? sessionsFor(W)[s].name : "Day", path: location.hash || "#/today", workout: true } : r.name === "week" ? { label: weekLabel(W), path: location.hash } : r.name === "block" ? { label: `Block ${ui.b}`, path: "#/block" } : r.name === "plan" ? { label: "Plan", path: location.hash } : { label: "Exercises", path: "#/exercises" };
   }
   last = { name: r.name, tab };
 }

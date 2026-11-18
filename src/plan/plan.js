@@ -104,6 +104,7 @@ export const KOT = {
 };
 export const JEFF_LB = { e: "25 lb", m: "35 lb", l: "45 lb" };
 export function dose(it, w) {
+  if (it.dose) return it.dose; // sets × reps fixed by an imported plan
   const ph = phaseOf(w);
   if (MAIN[it.p]) {
     if (ph === "cut") return { s: 2, r: MAIN[it.p].build[1], note: "deload" };

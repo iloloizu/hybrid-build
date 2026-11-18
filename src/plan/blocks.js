@@ -1,4 +1,5 @@
 import { sget, sset } from "../storage.js";
+import { planById, sessionsOf, phaseInfo, defaultSlots } from "../plans/index.js";
 
 /* ---------- blocks: repeat the 10-week template, with repeated or paused weeks ---------- */
 // Stored as "blocks|list": [{ id, start: "YYYY-MM-DD", ops: [{ type: "repeat" | "pause", at: calendarWeek }] }]
@@ -14,7 +15,7 @@ export const blockById = id => blocks().find(b => b.id === id) || blocks()[0];
 
 // Calendar weeks of a block: { b, cw, pw, rep, pause, key }
 export function weeksOf(b) {
-  const arr = Array.from({ length: 10 }, (_, k) => ({ pw: k + 1, rep: 0 }));
+  const arr = Array.from({ length: planById(b.plan || "hybrid").weeks }, (_, k) => ({ pw: k + 1, rep: 0 }));
   for (const op of b.ops || []) {
     const at = op.at - 1; if (at < 0 || at > arr.length) continue;
     if (op.type === "repeat" && arr[at] && !arr[at].pause) { const e = arr[at]; arr.splice(at + 1, 0, { pw: e.pw, rep: arr.filter(x => x.pw === e.pw).length }); }
@@ -25,6 +26,11 @@ export function weeksOf(b) {
 export const weekRef = (bid, cw) => { const ws = weeksOf(blockById(bid)); return ws[Math.max(1, Math.min(ws.length, cw)) - 1]; };
 // Old call sites pass a plain week number: that's block 1's calendar week.
 export const ref = w => typeof w === "object" ? w : weekRef(1, w);
+// The plan a week runs, its sessions, phase and default day layout.
+export const planOf = W => (blockById(W.b).plan || "hybrid");
+export const sessionsFor = W => sessionsOf(planOf(W), W.pw || 1);
+export const phaseOfWeek = W => phaseInfo(planOf(W), W.pw || 1);
+export const defaultSlotsFor = W => defaultSlots(planOf(W), W.pw || 1);
 export const weekLabel = W => W.pause ? "Paused" : `Week ${W.pw}${W.rep ? " again" : ""}`;
 
 // Every logged week in order, across blocks (for "last time" hints and substitutes that carry over).
@@ -51,9 +57,9 @@ export function landing(now = new Date()) {
   return now < parseISO(first.start) ? { b: first.id, cw: 1, d: 0 } : { b: last.id, cw: weeksOf(last).length, d: 6 };
 }
 
-export function startBlock(startISO) {
+export function startBlock(startISO, plan = "hybrid") {
   const list = blocks(), id = Math.max(...list.map(b => b.id)) + 1;
-  save(list.concat([{ id, start: startISO, ops: [] }])); return id;
+  save(list.concat([{ id, start: startISO, ops: [], plan }])); return id;
 }
 export function removeBlock(id) { if (id === 1) return; save(blocks().filter(b => b.id !== id)); }
 function editOps(bid, fn) { save(blocks().map(b => b.id === bid ? Object.assign({}, b, { ops: fn((b.ops || []).slice()) }) : b)); }
