@@ -95,8 +95,8 @@ export function exCard(it, i, sess) {
     const v = sget(setKey(W, sess, i, s)) || {};
     const prev = (LAST[x] || [])[s] || L[L.length - 1] || {};
     if (!v.d) all = false;
-    rows += `<div class="set${v.d ? " is-done" : ""}${s >= ds.s ? " extra" : ""}"><span class="n">${s + 1}</span>
-      <label class="field"><input inputmode="decimal" enterkeyhint="next" aria-label="Set ${s + 1} weight" data-i="${i}" data-s="${s}" data-f="w" value="${esc(v.w || prev.w || "")}" placeholder="${it.bw && !subbed ? "BW" : "—"}"><span>lb</span></label>
+    rows += `<div class="set${v.d ? " is-done" : ""}${v.z ? " zeroed" : ""}${s >= ds.s ? " extra" : ""}"><span class="n">${s + 1}</span>
+      <label class="field"><input inputmode="decimal" enterkeyhint="next" aria-label="Set ${s + 1} weight" data-i="${i}" data-s="${s}" data-f="w" value="${esc(v.w || (v.z ? "" : prev.w) || "")}" placeholder="${it.bw && !subbed ? "BW" : "—"}"><span>lb</span></label>
       <label class="field"><input inputmode="numeric" enterkeyhint="${s + 1 < total ? "next" : "done"}" aria-label="Set ${s + 1} reps" data-i="${i}" data-s="${s}" data-f="r" value="${esc(v.r)}" placeholder="${esc(ds.r)}"><span>reps</span></label>
       <button class="chk" aria-label="Set ${s + 1} done" aria-pressed="${!!v.d}" data-i="${i}" data-s="${s}" data-done="1">${CHECK}</button></div>`;
   }
@@ -136,7 +136,7 @@ function bindDay(sess) {
   on("[data-done]", b => {
     const i = +b.dataset.i, s = +b.dataset.s, k = setKey(w, sess, i, s), v = Object.assign({}, sget(k) || {});
     const items = DAYS[sess].items;
-    if (!v.d) { if (!v.r) v.r = dose(itemAt(W, sess, i), W.pw).r; const wi = app.querySelector(`input[data-i="${i}"][data-s="${s}"][data-f="w"]`); if (!v.w && wi && wi.value.trim()) v.w = wi.value.trim(); v.d = 1; buzz(); const r = restFor(items, i); if (r) startRest(r); } else v.d = 0;
+    if (v.z) { delete v.z; v.d = 0; v.r = ""; } else if (!v.d) { if (!v.r) v.r = dose(itemAt(W, sess, i), W.pw).r; const wi = app.querySelector(`input[data-i="${i}"][data-s="${s}"][data-f="w"]`); if (!v.w && wi && wi.value.trim()) v.w = wi.value.trim(); v.d = 1; buzz(); const r = restFor(items, i); if (r) startRest(r); } else v.d = 0;
     sset(k, v); keep(rerender);
   });
   app.querySelectorAll("input[data-f]").forEach(inp => {
@@ -185,6 +185,8 @@ function finishSheet(W, d, sess) {
     min.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); min.blur(); } };
     body.querySelector("#fin-go").onclick = () => {
       setRun(k, { mi: mi.value.trim(), min: min.value.trim() }); setFinished(k, true);
+      // Close out anything not lifted: 0 reps, marked so it never becomes a remembered weight.
+      if (sess >= 0) itemsFor(W, sess).forEach(({ it, i }) => { const nSets = totalSets(it, W, sess, i); for (let s = 0; s < nSets; s++) { const key = setKey(W, sess, i, s), v = sget(key) || {}; if (!v.d) sset(key, Object.assign({}, v, { r: "0", d: 1, z: 1 })); } });
       api.close(); buzz(30); keepAwake(false); confetti();
       setTimeout(() => { rerender(); setTimeout(() => stepDay(1), 650); }, 250);
     };
