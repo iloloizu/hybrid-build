@@ -219,10 +219,13 @@ function finishSheet(W, d, sess) {
 
 // Finished workout → Strava (one activity per day's session; see strava.js for no-double-posting).
 function sendToStrava({ W, sess, k, vol, real, rows, bwRows, times }) {
-  const S = sessionsFor(W)[sess] || {}, t = times.filter(Boolean).sort((a, b) => a - b);
-  const planned = (sessionMeta(S).mins || 50) * 60;
+  const today = iso(new Date());
+  if (k > today) { toast("Strava gets it on the day."); return; }
+  const S = sessionsFor(W)[sess] || {}, planned = (sessionMeta(S).mins || 50) * 60;
+  // Ticks only count if they happened on that day; logging an old workout later uses 8:00 AM that day.
+  const t = times.filter(x => x && iso(new Date(x)) === k).sort((a, b) => a - b);
   const elapsed = t.length > 1 ? Math.max(600, Math.round((t[t.length - 1] - t[0]) / 1000) + 180) : planned;
-  const startMs = t.length ? t[0] - 120000 : Date.now() - elapsed * 1000, d = new Date(startMs);
+  const startMs = t.length ? t[0] - 120000 : k === today ? Date.now() - elapsed * 1000 : new Date(`${k}T08:00:00`).getTime(), d = new Date(startMs);
   const pad = n => String(n).padStart(2, "0");
   const start = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
   const lines = rows.map(r => `${r.name}: ${r.sets.join(", ")}`).concat(bwRows);
