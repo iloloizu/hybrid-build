@@ -427,7 +427,10 @@ export const REPDB_IDS = {
   "x-weighted-hypers": "back-extension",
   "x-weighted-pushups": "push-up"
 };
+// Our own pictures (generated for this app), used before RepDB's.
+const OWN_PICS = new Set(["broadjump", "bayesian"]);
 export function picFor(id) {
+  if (OWN_PICS.has(id)) return { a: `img/own/${id}-start.webp`, b: `img/own/${id}-peak.webp` };
   const r = REPDB_IDS[id]; if (!r) return null;
   const [rid, main] = r.split("|");
   return main ? { a: `img/repdb/${rid}-main.webp`, b: `img/repdb/${rid}-main.webp`, still: true } : { a: `img/repdb/${rid}-start.webp`, b: `img/repdb/${rid}-peak.webp` };
