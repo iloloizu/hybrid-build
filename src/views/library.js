@@ -1,3 +1,4 @@
+import { avatarBtn } from "./account.js";
 import { EX } from "../plan/exercises.js";
 import { DAYS, KNEE } from "../plan/plan.js";
 import { muscleKeys } from "../figure/engine.js";
@@ -19,7 +20,7 @@ export function groupOf(id, g) {
 let state = { q: "", g: "all" };
 export function renderLibrary() {
   const app = document.getElementById("app"); app.className = "wrap library";
-  app.innerHTML = topbar({ title: "Exercises", sub: `${Object.keys(EX).length} moves` })
+  app.innerHTML = topbar({ title: "Exercises", sub: `${Object.keys(EX).length} moves`, right: avatarBtn() })
     + `<div class="libtools"><label class="search">${ICON.search}<input type="search" id="q" placeholder="Search name, muscle, equipment" aria-label="Search exercises" enterkeyhint="search" value="${esc(state.q)}"></label>
       <div class="chips noswipe" role="group" aria-label="Muscle group">${GROUPS.map(([k, l]) => `<button data-g="${k}" aria-pressed="${state.g === k}">${l}</button>`).join("")}</div></div>
       <div class="sublist" id="libres"></div>`;

@@ -18,17 +18,22 @@ export function keepForever() {
   if (persistAsked) return; persistAsked = true;
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {}
 }
-export const isSynced = () => !!(DB && UID);
+let REMOTE = null;
+export function useRemote(r) { REMOTE = r; if (r) flush(); }
+export const isSynced = () => !!(DB && UID) || !!REMOTE;
 let flushing = false;
 export async function flush() {
-  if (!DB || !UID || flushing) return;
+  if (!(REMOTE || (DB && UID)) || flushing) return;
   flushing = true;
+  let d = null;
   try {
     while (dirty.size) {
-      const d = dirty.values().next().value; dirty.delete(d);
-      await DB.collection("data/users/" + UID).doc(d).set({ v: STORE[d] || {} });
+      d = dirty.values().next().value; dirty.delete(d);
+      if (REMOTE) { if (STORE[d]) await REMOTE.put(d, STORE[d]); else await REMOTE.del(d); }
+      else await DB.collection("data/users/" + UID).doc(d).set({ v: STORE[d] || {} });
+      d = null;
     }
-  } catch (e) { /* stays local */ }
+  } catch (e) { if (d) dirty.add(d); /* stays local; retried on the next save */ }
   flushing = false;
 }
 // w is a week key ("w3", "b2w3r1") or, for block 1, a plain week number.

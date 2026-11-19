@@ -1,3 +1,4 @@
+import { avatarBtn } from "./account.js";
 import { ICON } from "../ui/icons.js";
 import { ui } from "../state.js";
 import { PHASES, phaseOf, phaseName, fmt } from "../plan/plan.js";
@@ -21,7 +22,7 @@ export function weekProgress(W) {
 export function renderBlock() {
   const app = document.getElementById("app"); app.className = "wrap block";
   const B = blockById(ui.b), all = blocks(), t = todayWD();
-  let h = topbar({ title: `Block ${B.id}`, sub: `${planById(B.plan || "hybrid").short} · ${fmt(parseISO(B.start))} – ${fmt(blockEnd(B))}`, right: `<button class="iconbtn" id="gear" aria-label="Settings">${ICON.gear}</button>` });
+  let h = topbar({ title: `Block ${B.id}`, sub: `${planById(B.plan || "hybrid").short} · ${fmt(parseISO(B.start))} – ${fmt(blockEnd(B))}`, right: avatarBtn() + `<button class="iconbtn" id="gear" aria-label="Settings">${ICON.gear}</button>` });
   if (all.length > 1) h += `<div class="chips noswipe" role="group" aria-label="Blocks">${all.map(b => `<button data-b="${b.id}" aria-pressed="${b.id === B.id}">Block ${b.id} · ${planById(b.plan || "hybrid").short}</button>`).join("")}</div>`;
   let last = null;
   h += `<div class="weeklist">`;

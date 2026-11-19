@@ -1,3 +1,4 @@
+import { avatarBtn } from "./account.js";
 import { ui } from "../state.js";
 import { EX } from "../plan/exercises.js";
 import { DOW, dose, fmt } from "../plan/plan.js";
@@ -24,7 +25,7 @@ function planStats(p) {
 export function renderExplore() {
   const app = document.getElementById("app"); app.className = "wrap explore";
   const act = activePlan();
-  let h = topbar({ title: "Explore", sub: "Plans to try" });
+  let h = topbar({ title: "Explore", sub: "Plans to try", right: avatarBtn() });
   h += `<div class="plans">${allPlans().map(p => { const st = planStats(p); return `<button class="plancard${p.id === act ? " active" : ""}" data-plan="${esc(p.id)}">
     <span class="pc-top"><span class="pc-by">${esc(p.by)}</span>${p.id === act ? `<span class="pc-badge">Running now</span>` : ""}</span>
     <b class="pc-name">${esc(p.name)}</b><span class="pc-blurb">${esc(p.blurb || "")}</span>

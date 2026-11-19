@@ -1,3 +1,4 @@
+import { renderWelcome, renderAuth, renderProfile } from "./account.js";
 import { ui } from "../state.js";
 import { DAYS } from "../plan/plan.js";
 import { slots } from "../schedule.js";
@@ -27,7 +28,7 @@ function tabFor(r) {
   if (r.name === "day") { const t = todayWD(); return t && t.b === ui.b && t.w === r.w && t.d === r.d && last && last.tab === "today" ? "today" : "week"; }
   if (r.name === "ex") return (last && last.tab) || "library";
   if (r.name === "plan") return "explore";
-  if (r.name === "settings") return "block";
+  if (["settings", "signup", "signin", "reset", "profile", "welcome"].includes(r.name)) return "block";
   return r.name === "library" ? "library" : r.name;
 }
 
@@ -35,12 +36,16 @@ export function rerender() { draw(route()); }
 function draw(r) {
   if (r.name !== "ex") { stopEx(); ui.view = "plan"; }
   if (r.name !== "day" && r.name !== "today") { keepAwake(false); resetZoom(); }
+  document.body.classList.toggle("bare", r.name === "welcome");
   switch (r.name) {
     case "today": { const t = todayTarget(); ui.b = t.b; renderDay(t.w, t.d, true); break; }
     case "day": renderDay(r.w, r.d, false); break;
     case "week": renderWeek(r.w || ui.week || 1); break;
     case "block": renderBlock(); break;
     case "settings": renderSettings(); break;
+    case "welcome": renderWelcome(); break;
+    case "signup": case "signin": case "reset": renderAuth(r.name); break;
+    case "profile": renderProfile(); break;
     case "library": renderLibrary(); break;
     case "explore": renderExplore(); break;
     case "plan": renderPlanPage(r.id); break;
