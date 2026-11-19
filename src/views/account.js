@@ -1,9 +1,10 @@
+import { ask } from "../ui/confirm.js";
 import { go, back } from "../router.js";
 import { topbar } from "../ui/topbar.js";
 import { toast } from "../ui/toast.js";
 import { store } from "../platform/index.js";
 import { esc } from "./common.js";
-import { USER, PROFILE, RECOVERY, signedIn, displayName, initial, signUp, signIn, sendReset, setPassword, signOut, saveProfile } from "../account.js";
+import { USER, PROFILE, RECOVERY, signedIn, displayName, initial, signUp, signIn, sendReset, setPassword, signOut, saveProfile, deleteAccount } from "../account.js";
 
 const app = () => document.getElementById("app");
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -111,7 +112,7 @@ export function renderProfile() {
       <button class="pf-row" id="pf-pw"><span>Change password</span></button>
       <button class="pf-row danger" id="pf-out"><span>Sign out</span></button>
     </section>
-    <p class="af-note">To delete your account and data, email <a href="mailto:iloloizu97@gmail.com?subject=Delete%20my%20Hybrid%20Build%20account">iloloizu97@gmail.com</a>.</p>`;
+    <button class="textbtn center danger" id="pf-del">Delete account</button>`;
   document.getElementById("tb-back").onclick = () => back("#/settings");
   const f = document.getElementById("pf");
   f.onsubmit = async e => {
@@ -121,6 +122,12 @@ export function renderProfile() {
     b.disabled = false;
   };
   document.getElementById("pf-pw").onclick = () => { renderNewPassword(); };
+  document.getElementById("pf-del").onclick = async () => {
+    const ok = await ask({ title: "Delete your account?", body: "This permanently deletes your account, profile and every workout saved to it, on all devices. It can't be undone.", yes: "Delete forever", no: "Keep account" });
+    if (!ok) return;
+    try { await deleteAccount(); toast("Account deleted."); go("#/welcome", { replace: true }); }
+    catch (x) { toast(x.message); }
+  };
   document.getElementById("pf-out").onclick = async () => { await signOut(); toast("Signed out."); go("#/welcome", { replace: true }); };
 }
 

@@ -779,7 +779,7 @@ div.pf-row { cursor: default; }
   .tabs .menu-only { display: flex; }
   .tabs i.menu-sep { display: block; height: 1px; margin: 6px 8px; background: rgba(255,255,255,.08); }
   body.navopen .navscrim { display: block; position: fixed; inset: 0; z-index: 39; background: rgba(0,0,0,.4); }
-  body.zooming .menubtn, body.bare .menubtn { display: none; }
+  body.zooming .menubtn, body.bare .menubtn, body.locked .menubtn { display: none; }
   #toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
   #timer { bottom: calc(18px + env(safe-area-inset-bottom)); }
   .wrap { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
@@ -787,3 +787,4 @@ div.pf-row { cursor: default; }
 @keyframes menuin { from { opacity: 0; transform: scale(.94) translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { body.navopen .tabs { animation: none; } }
 .tabs a:focus:not(:focus-visible) { outline: none; }
+.textbtn.danger { color: #ff8a8a; margin-top: 8px; }
