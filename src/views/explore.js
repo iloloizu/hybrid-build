@@ -65,7 +65,7 @@ export function renderPlanPage(id) {
   document.getElementById("tb-back").onclick = () => back("#/explore");
   document.getElementById("tryplan").onclick = () => trySheet(P);
   const cp = document.getElementById("copyplan");
-  if (cp) cp.onclick = async () => { const raw = JSON.stringify(customPlans().find(p => p.id === id)); try { await navigator.clipboard.writeText(raw); toast("Plan copied. Paste it into Hybrid Build on another device."); } catch (e) { pasteSheet(raw); } };
+  if (cp) cp.onclick = async () => { const raw = JSON.stringify(customPlans().find(p => p.id === id)); try { await navigator.clipboard.writeText(raw); toast("Plan copied. Paste it into Move on another device."); } catch (e) { pasteSheet(raw); } };
   twoTap(document.getElementById("rmplan"), "Tap again to remove this plan", () => { removePlan(id); toast("Plan removed."); back("#/explore"); });
 }
 
@@ -73,7 +73,7 @@ export function renderPlanPage(id) {
 function pasteSheet(prefill) {
   const show = typeof prefill === "string";
   openSheet({ title: show ? "Copy this plan" : "Paste a plan", render: (body, api) => {
-    body.innerHTML = `<div class="optnote">${show ? "Select all and copy, then paste it into Hybrid Build on your other device." : "Paste a plan copied from Hybrid Build (Copy plan on an imported plan)."}</div>
+    body.innerHTML = `<div class="optnote">${show ? "Select all and copy, then paste it into Move on your other device." : "Paste a plan copied from Move (Copy plan on an imported plan)."}</div>
       <textarea id="planjson" class="plantext" spellcheck="false" ${show ? "readonly" : 'placeholder="{ &quot;name&quot;: …"'}>${show ? esc(prefill) : ""}</textarea>
       ${show ? "" : `<button class="bigbtn" id="pastego">Add plan</button>`}`;
     const ta = body.querySelector("#planjson"); if (show) { ta.focus(); ta.select(); return; }
@@ -86,7 +86,7 @@ async function uploadSheet() {
   const sample = await aiSample(), lim = sample ? await aiLimits() : null;
   if (!sample) {
     openSheet({ title: "Upload a plan", render: body => {
-      body.innerHTML = `<div class="optnote">Reading PDFs and screenshots uses Claude, which works when Hybrid Build is open inside the Claude app (your preview link). Upload there, tap <b>Copy plan</b>, then <b>Paste plan</b> here.</div><div class="optnote">No API key is stored in this app.</div>`;
+      body.innerHTML = `<div class="optnote">Reading PDFs and screenshots uses Claude, which works when Move is open inside the Claude app (your preview link). Upload there, tap <b>Copy plan</b>, then <b>Paste plan</b> here.</div><div class="optnote">No API key is stored in this app.</div>`;
     } });
     return;
   }

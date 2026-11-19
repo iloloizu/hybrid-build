@@ -11,7 +11,7 @@ The web app is built to be wrapped with [Capacitor](https://capacitorjs.com) so 
 
 ## Steps (needs a Mac with Xcode)
 1. `npm i @capacitor/core @capacitor/ios @capacitor/preferences @capacitor/haptics @capacitor/local-notifications @capacitor-community/keep-awake && npm i -D @capacitor/cli`
-2. `npx cap init "Hybrid Build" com.ilolo.hybridbuild --web-dir dist`, then `npm run build && npx cap add ios`.
+2. `npx cap init "Move" com.ilolo.move --web-dir dist`, then `npm run build && npx cap add ios`.
 3. In `src/platform/index.js`, when `platform.name === "ios"`, use the plugins: Preferences for `store` (load once into memory at start), Haptics for `haptic`, KeepAwake for `keepAwake`, LocalNotifications for `notifyAt` (rest timer with the screen locked).
 4. Apple Health: add a HealthKit plugin (e.g. `@perfood/capacitor-healthkit`), request workout + distance read access, and implement `health.workouts()`; the day screen shows them where Strava runs show today.
 5. `npx cap open ios`, set the signing team, run on your iPhone. TestFlight / App Store needs the Apple Developer Program ($99/yr).

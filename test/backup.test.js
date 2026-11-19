@@ -22,7 +22,7 @@ describe("backup and restore", () => {
   it("rejects files that are not backups and leaves data alone", () => {
     sset(setKey(1, 0, 0, 0), { w: "135" });
     expect(() => restoreJSON("not json")).toThrow("Not a backup file");
-    expect(() => restoreJSON(JSON.stringify({ hello: 1 }))).toThrow("Not a Hybrid Build backup");
+    expect(() => restoreJSON(JSON.stringify({ hello: 1 }))).toThrow("Not a Move backup");
     expect(sget(setKey(1, 0, 0, 0))).toEqual({ w: "135" });
   });
   it("ignores unknown keys inside a backup", () => {

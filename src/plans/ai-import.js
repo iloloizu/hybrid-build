@@ -100,5 +100,5 @@ export async function aiImport(files, { hint = "", onStep, signal } = {}) {
 // Error codes → short copy for the person.
 export function aiErrorCopy(e) {
   const c = e && e.code;
-  return { unavailable: "AI import works when Hybrid Build is open inside the Claude app.", not_granted: "Claude wasn't allowed for this page.", rate_limited: "Claude is busy or you've hit a usage limit. Try again in a bit.", invalid_json: "Claude's answer wasn't a plan. Try again or add a hint.", image_rejected: "One of the files couldn't be read. Try a different one.", cancelled: "Stopped.", refused: "Claude couldn't read that. Try different files." }[c] || (e && e.message) || "Something went wrong. Try again.";
+  return { unavailable: "AI import works when Move is open inside the Claude app.", not_granted: "Claude wasn't allowed for this page.", rate_limited: "Claude is busy or you've hit a usage limit. Try again in a bit.", invalid_json: "Claude's answer wasn't a plan. Try again or add a hint.", image_rejected: "One of the files couldn't be read. Try a different one.", cancelled: "Stopped.", refused: "Claude couldn't read that. Try different files." }[c] || (e && e.message) || "Something went wrong. Try again.";
 }
