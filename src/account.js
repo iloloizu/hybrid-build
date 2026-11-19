@@ -74,6 +74,20 @@ export async function signOut() {
   for (const k of Object.keys(STORE)) delete STORE[k];
   persistLocal(); store.set("hb-welcomed", "");
 }
+// Permanently deletes the account and everything saved to it (server function), then clears this device.
+export async function deleteAccount() {
+  const { data } = await sb.auth.getSession();
+  if (!data.session) throw new Error("Sign in again, then retry.");
+  let r;
+  try { r = await fetch(URL_ + "/functions/v1/delete-account", { method: "POST", headers: { apikey: KEY, Authorization: "Bearer " + data.session.access_token } }); }
+  catch (e) { throw new Error(msg(e)); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || "Couldn't delete the account. Try again.");
+  dirty.clear();
+  await sb.auth.signOut({ scope: "local" }).catch(() => {});
+  for (const k of Object.keys(STORE)) delete STORE[k];
+  persistLocal(); store.set("hb-welcomed", "");
+}
 export async function saveProfile(p) {
   const row = { display_name: (p.display_name || "").trim().slice(0, 40) || null, goal: (p.goal || "").trim().slice(0, 120) || null, updated_at: new Date().toISOString() };
   PROFILE = Object.assign({}, PROFILE, await run(sb.from("profiles").update(row).eq("id", USER.id).select().single()));
