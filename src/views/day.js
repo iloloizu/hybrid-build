@@ -19,6 +19,7 @@ import { startRest } from "../ui/timer.js";
 import { buzz, keepAwake } from "../ui/device.js";
 import { todayWD } from "./today.js";
 import { rerender } from "./app.js";
+import { buildEntries, workoutHTML, zoomHTML, bindWorkout, resetZoom } from "./workout.js";
 
 /* ---------- day screen: one session, nothing else ---------- */
 let LAST = {};
@@ -60,35 +61,31 @@ export function renderDay(w, d, isTodayTab) {
     h += `<section class="hero"><h2 class="dim">${W.pause ? "Paused" : skipped ? "Skipped" : "Rest Day"}</h2><div class="meta">${flag ? `<span class="flag">${flag}</span>` : ""}<span>${P.rir}</span></div></section>
       <div class="longrun">${W.pause ? "Paused week. The plan picks up where you left off next week." : skipped ? "Skipped. Got 20 minutes? Pump Only keeps the priority muscles moving." : "Nothing scheduled. Easy run or full rest."}</div>${strava}
       ${skipped ? `<button class="bigbtn ghost" data-quick="S5"><b>20 min</b> Pump Only</button>` : ""}${W.pause ? "" : (acts.length ? "" : runLine(date)) + finishBlock(date, null)}`;
-    app.innerHTML = h; bindDay(sess); keepAwake(false); return;
+    resetZoom(); app.innerHTML = h; bindDay(sess); keepAwake(false); return;
   }
   if (s.kind === "run") {
     h += `<section class="hero"><h2 class="run">${esc(s.name)}</h2><div class="meta"><span>Long run</span><span>No lifting</span>${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>${strava}${acts.length ? "" : runLine(date)}${finishBlock(date, null)}`;
     app.innerHTML = h; bindDay(sess); keepAwake(false); return;
   }
-  const moved = sess !== d ? `<span class="hot">Moved from ${dowName(sess)}</span>` : "";
-  h += `<section class="hero"><h2>${esc(s.name)}</h2><div class="meta">${hybrid ? `<span class="hot">${P.rir}</span>` : ""}${moved}${hybrid ? `<span class="typepill">${esc(sessionMeta(s).focus)}</span><span>${s.mins} min</span><span>${s.run}</span>` : metaPills(s)}${flag ? `<span class="flag">${flag}</span>` : ""}</div></section>`;
-  if (!(n === tot && tot)) h += `<button class="cantbtn" id="cant">Can't train today?</button>`;
-  h += strava;
+  // Lifting day: the workout overview, or the zoomed-in playlist view (src/views/workout.js).
+  if (ui.zoomKey !== `${ui.b}:${w}:${d}`) { resetZoom(); ui.zoomKey = `${ui.b}:${w}:${d}`; }
+  const entries = buildEntries(W, sess, LAST);
+  const chips = [sess !== d ? `<span class="hot">Moved from ${dowName(sess)}</span>` : "", `<span class="typepill">${esc(sessionMeta(s).focus)}</span>`, hybrid ? "" : (sessionMeta(s).intensity ? `<span class="hot">${sessionMeta(s).intensity}</span>` : ""), flag ? `<span class="flag">${flag}</span>` : ""].join("");
+  let warm = "";
   if (hybrid) {
-  const warmDone = KNEE.filter((_, i) => sget(warmKey(W, sess, i))).length;
-  h += `<div class="lbl">Knee Ready<em>${warmDone}/${KNEE.length} · 10 min</em></div><div class="warm">${KNEE.map(([id, dz], i) => { const on = !!sget(warmKey(W, sess, i)); return `<div class="wcard${on ? " on" : ""}"><button class="thumb" data-ex="${id}" aria-label="How to do ${esc(EX[id].name)}">${thumbHTML(id)}</button><div class="wb"><span><span class="wn">${EX[id].name}</span><br><span class="wd">${dz}</span></span><button class="chk" aria-label="${esc(EX[id].name)} done" aria-pressed="${on}" data-warm="${i}">${CHECK}</button></div></div>`; }).join("")}</div>`;
+    const warmDone = KNEE.filter((_, i) => sget(warmKey(W, sess, i))).length;
+    warm = `<div class="lbl">Knee Ready<em>${warmDone}/${KNEE.length} · 10 min</em></div><div class="warm">${KNEE.map(([id, dz], i) => { const on = !!sget(warmKey(W, sess, i)); return `<div class="wcard${on ? " on" : ""}"><button class="thumb" data-ex="${id}" aria-label="How to do ${esc(EX[id].name)}">${thumbHTML(id)}</button><div class="wb"><span><span class="wn">${EX[id].name}</span><br><span class="wd">${dz}</span></span><button class="chk" aria-label="${esc(EX[id].name)} done" aria-pressed="${on}" data-warm="${i}">${CHECK}</button></div></div>`; }).join("")}</div>`;
   }
-  h += `<div class="lbl">Workout<em>${n}/${tot} sets</em></div><div class="list">`;
-  let i = 0;
-  while (i < s.items.length) {
-    const it = s.items[i];
-    if (it.ss) {
-      const g0 = it.ss; let g = "", cnt = 0;
-      while (i < s.items.length && s.items[i].ss === g0) { const c = exCard(s.items[i], i, sess); if (c) { g += c; cnt++; } i++; }
-      if (cnt) h += `<div class="ss"><div class="ss-tag">${g0 === 3 ? "Arm finisher" : "Superset"} · no rest between</div>${g}</div>`;
-    } else { const c = exCard(it, i, sess); if (c) h += c; i++; }
-  }
-  itemsFor(W, sess).filter(x => x.it.added).forEach(({ it, i }) => { h += exCard(it, i, sess); });
-  h += `</div><div class="endrow"><button class="endbtn" id="addex">${ICON.plus}<span>Add exercise</span></button>${(s.swaps || []).length ? `<button class="endbtn" id="shorttime">${ICON.timer}<span>Short on time</span></button>` : ""}</div>`;
-  if (!acts.length) h += runLine(date);
-  h += finishBlock(date, [n, tot]);
-  app.innerHTML = h; bindDay(sess); keepAwake(true);
+  const end = `<div class="endrow"><button class="endbtn" id="addex">${ICON.plus}<span>Add exercise</span></button>${(s.swaps || []).length ? `<button class="endbtn" id="shorttime">${ICON.timer}<span>Short on time</span></button>` : ""}</div>${acts.length ? "" : runLine(date)}${finishBlock(date, [n, tot])}`;
+  const topRow = `<div class="wo-top"><button class="stepbtn" data-step="-1" ${w === 1 && d === 0 ? "disabled" : ""} aria-label="Previous day, ${dowName(pd)}">${ICON.prev}<span>${dowName(pd)} ${dayDate(weekRef(ui.b, pw), pd).getDate()}</span></button>
+    <span class="sp"></span>${!isToday && t ? `<button class="pill" id="jumptoday">Today</button>` : ""}<button class="iconbtn" id="opts" aria-label="Day options">${ICON.more}</button>
+    <button class="stepbtn" data-step="1" ${w === nWeeks() && d === 6 ? "disabled" : ""} aria-label="Next day, ${dowName(nd)}"><span>${dowName(nd)} ${dayDate(weekRef(ui.b, nw), nd).getDate()}</span>${ICON.next}</button></div>`;
+  const ctx = { W, sess, s, P, hybrid, date, entries, topRow, chips, extra: { cant: n === tot && tot ? "" : `<button class="cantbtn" id="cant">Can't train today?</button>`, strava, warm, end }, hooks: { subSheet } };
+  const zoom = ui.zoom != null && entries.length;
+  if (!zoom) ui.zoom = null;
+  app.className = "wrap day wo" + (zoom ? " zoom" : "");
+  app.innerHTML = zoom ? zoomHTML(ctx) : workoutHTML(ctx);
+  bindDay(sess); bindWorkout(ctx); keepAwake(true);
 }
 
 export function exCard(it, i, sess) {
@@ -135,7 +132,7 @@ function bindDay(sess) {
   }
   const jt = document.getElementById("jumptoday"); if (jt) jt.onclick = () => go("#/today");
   on("[data-ex]", b => go(`#/ex/${b.dataset.ex}`));
-  document.getElementById("opts").onclick = () => dayOptions(sess);
+  const op = document.getElementById("opts"); if (op) op.onclick = () => dayOptions(sess);
   const st = document.getElementById("shorttime"); if (st && SS()[sess]) st.onclick = () => quickSheet(SS()[sess].swaps);
   on("[data-quick]", b => quickSheet([b.dataset.quick]));
   on("[data-warm]", b => { const k = warmKey(w, sess, +b.dataset.warm); const was = sget(k); sset(k, was ? null : 1); if (!was) buzz(); keep(rerender); });

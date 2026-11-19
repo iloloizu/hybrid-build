@@ -59,4 +59,4 @@ Open the Pages URL in Safari, unlock it, then Share → Add to Home Screen. Afte
 
 ## Credits
 
-Exercise animations and stills for 10 movements (incline DB press, cross-body hammer curl, incline DB curl, pull-up, DB curl, front squat, reverse lunge, ab wheel rollout, rowing machine, bent-over DB row) are from the RepDB free preview pack: "Exercise data & images: RepDB (https://repdb.co)", licensed CC BY-NC 4.0 (non-commercial use only; see `public/repdb/LICENSE.md`). A paid or ad-supported version of this app would need RepDB's commercial license. All other exercises use the in-app mannequin.
+Exercise data by [RepDB](https://repdb.co). Exercise pictures (flat style, start/peak) come from the RepDB free tier (github.com/RepDB/exercise-dataset); only the images for exercises in our plans are copied, into `public/img/repdb/`. The mapping from our exercise ids to RepDB ids is `REPDB_IDS` in `src/plan/exercises.js`; exercises without a match use the in-app figure engine. Free-tier terms: in-app use with this attribution, no redistribution as a dataset, no generative-AI derivation.
