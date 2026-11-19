@@ -691,3 +691,16 @@ body.zooming { padding-left: 0 !important; }
   .wo.zoom .zm-pic { width: min(150px, 34vh); }
   .wo-head h1 { font-size: 28px; }
 }
+
+/* ===== user color ===== */
+.wo-prog .bar i, .bar em { background: var(--accent); }
+.pbtn, .backbig, .weekrow.now .pbib, .pc-badge { color: var(--accent-ink, var(--bg)); }
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 10px; }
+.sw { position: relative; display: grid; justify-items: center; gap: 6px; background: none; border: 0; padding: 4px 0; cursor: pointer; color: var(--muted); font: 700 12px var(--body); }
+.sw i { width: 40px; height: 40px; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+.sw.auto i { background: conic-gradient(#2f6688, #2b6f62, #5b3f86, #8a4b2c, #7a3658, #2f6688); box-shadow: inset 0 0 0 6px #7cf2c2; }
+.sw.custom i { background: conic-gradient(from 90deg, #ff5f5f, #ffd166, #7cf2c2, #6cc4ff, #b79bff, #ff5f5f); }
+.sw.custom[aria-checked="true"] i { background: var(--c); }
+.sw[aria-checked="true"] { color: var(--ink); }
+.sw[aria-checked="true"] i { outline: 2px solid #fff; outline-offset: 3px; }
+.sw input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }

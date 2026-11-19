@@ -1,3 +1,4 @@
+import { themeHue } from "../ui/theme.js";
 import { ui } from "../state.js";
 import { EX, picFor } from "../plan/exercises.js";
 import { KNEE, dose, flagFor, fmt } from "../plan/plan.js";
@@ -39,7 +40,7 @@ export function buildEntries(W, sess, LAST) {
     out.push({ it, i, x, ds, total, done: closed, lifted: done, sets, ss: it.added ? null : (it.ss == null ? null : it.ss),
       name: x === it.x && it.label ? it.label : EX[x].name, prev: LAST[x] || [], last: top && parseFloat(top.w) ? `${top.w} lb` : it.bw ? "bodyweight" : "" });
   });
-  return out.map((e, k) => Object.assign(e, { k, hue: HUES[k % HUES.length] }));
+  return out.map((e, k) => Object.assign(e, { k, hue: themeHue(k, HUES[k % HUES.length]) }));
 }
 
 const pics = (x, live, cls = "") => {
@@ -73,7 +74,7 @@ export function workoutHTML(ctx) {
   const kick = `${DOWS[date.getDay()]} ${date.getDate()} ${MONTHS[date.getMonth()]} · ${weekLabel(W).toUpperCase()} · ${String(P.name || "").toUpperCase()}`;
   const resume = open < 0 ? "All sets logged" : `Zoom in · ${shortName(entries[open].name)}, set ${entries[open].done + 1}`;
   const pos = e => { const grp = entries.filter(x => x.ss != null && x.ss === e.ss); return grp.indexOf(e) + 1; };
-  let h = `<div class="wo-bg" style="--hue:${F ? F.hue : HUES[0]}"><i class="wo-hue"></i><i class="wo-fade"></i></div>
+  let h = `<div class="wo-bg" style="--hue:${F ? F.hue : themeHue(0, HUES[0])}"><i class="wo-hue"></i><i class="wo-fade"></i></div>
     ${ctx.topRow}
     <header class="wo-head"><span class="kick">${esc(kick)}</span><h1>${esc(s.name)}</h1>
       <span class="wo-sub">${entries.length} exercises · ${total} sets · about ${mins} min${hybrid ? ` · ${esc(P.rir)}` : ""}</span>
