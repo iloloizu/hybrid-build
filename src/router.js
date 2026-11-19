@@ -17,6 +17,7 @@ export function parse(h) {
   }
   if (p[0] === "block") return { name: "block" };
   if (p[0] === "settings") return { name: "settings" };
+  if (["welcome", "signup", "signin", "reset", "profile"].includes(p[0])) return { name: p[0] };
   if (p[0] === "exercises") return { name: "library" };
   if (p[0] === "explore") return { name: "explore" };
   if (p[0] === "plan" && p[1]) return { name: "plan", id: decodeURIComponent(p[1]) };

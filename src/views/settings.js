@@ -1,3 +1,4 @@
+import { accountCard } from "./account.js";
 import { SWATCHES, getTheme, setTheme } from "../ui/theme.js";
 import { topbar } from "../ui/topbar.js";
 import { back } from "../router.js";
@@ -22,6 +23,7 @@ export function renderSettings() {
   const th = getTheme(), custom = th !== "auto" && !SWATCHES.some(([v]) => v === th);
   const refs = Object.values(SOURCES).reduce((t, v) => t + (v.sources || []).length, 0);
   let h = topbar({ title: "Settings", back: { label: "Back" } });
+  h += accountCard();
   h += `<div class="lbl">Your color</div><section class="swatches" role="radiogroup" aria-label="App color">${SWATCHES.map(([v, n]) => `<button role="radio" aria-checked="${th === v}" aria-label="${n}" data-th="${v}" class="sw${v === "auto" ? " auto" : ""}" style="--c:${v === "auto" ? "#7cf2c2" : v}"><i></i><span>${n}</span></button>`).join("")}<label class="sw custom" aria-checked="${custom}" style="--c:${custom ? th : "#888"}"><i></i><span>Custom</span><input type="color" id="thpick" value="${th === "auto" ? "#7cf2c2" : th}" aria-label="Custom color"></label></section>`;
   h += `<div class="lbl">Your data</div>` + saveBar();
   h += `<div class="lbl">Contact us</div><section class="about"><p>Found a problem or have an idea? Email <a href="mailto:${CONTACT}?subject=Hybrid%20Build">${CONTACT}</a>.</p></section>`;
