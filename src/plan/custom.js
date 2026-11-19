@@ -17,10 +17,24 @@ export function removeSet(w, s, i) { const n = extraSets(w, s, i) - 1; sset(extr
 export function totalSets(it, w, s, i) { const ds = dose(it, ref(w).pw); return ds ? ds.s + extraSets(w, s, i) : 0; }
 
 // A substitute holds from the week you pick it onward (same gym), until you switch back.
+// A "just today" swap lives only in that week's session.
+export const onceKey = (w, s, i) => setKey(ref(w), s, "subonce", i);
+const hintOffKey = (w, s, i) => setKey(ref(w), s, "subhint", i);
 export function activeSub(w, s, i) {
+  const once = sget(onceKey(w, s, i)); if (once !== undefined && once !== null) return once && EX[once] ? once : null;
   for (const W of [ref(w)].concat(earlier(ref(w)))) { const v = sget(subKey(W, s, i)); if (v !== undefined) return v && EX[v] ? v : null; }
   return null;
 }
+export function setSubOnce(w, s, i, id, original) { sset(onceKey(w, s, i), !id || id === original ? null : id); }
+export const isOnce = (w, s, i) => !!sget(onceKey(w, s, i));
+// The most recent earlier week where you swapped this exercise just for that day.
+export function lastOnce(w, s, i) {
+  if (sget(hintOffKey(w, s, i))) return null;
+  const here = ref(w);
+  for (const W of earlier(here).filter(x => x.b === here.b)) { const v = sget(onceKey(W, s, i)); if (v && EX[v]) return v; }
+  return null;
+}
+export const hideHint = (w, s, i) => sset(hintOffKey(w, s, i), 1);
 export function setSub(w, s, i, id, original) {
   const back = !id || id === original;
   const prev = earlier(ref(w))[0], before = prev ? activeSub(prev, s, i) : null;

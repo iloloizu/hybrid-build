@@ -4,7 +4,7 @@ import { KNEE, SWAPS, DAYS, DOW, PHASES, phaseOf, phaseName, dose, flagFor, fmt,
 import { sessionMeta } from "../plans/index.js";
 import { weekRef, prevRef, weekLabel, weeksOf, blockById, dayDate, sessionsFor, phaseOfWeek, planOf } from "../plan/blocks.js";
 import { STORE, ACTS, SYNC, dirty, persistLocal, sget, sset, flush, setKey, warmKey, schedKey } from "../storage.js";
-import { exFor, extraSets, addSet, removeSet, setSub, similar, totalSets, lastLogs, itemsFor, itemAt, addExercise, removeExercise, ADD0 } from "../plan/custom.js";
+import { activeSub, setSubOnce, exFor, extraSets, addSet, removeSet, setSub, similar, totalSets, lastLogs, itemsFor, itemAt, addExercise, removeExercise, ADD0 } from "../plan/custom.js";
 import { slots, pushToTomorrow, pushPlan, swapDays, skipDay } from "../schedule.js";
 import { getRun, setRun, pace, isFinished, setFinished } from "../plan/runs.js";
 import { confetti } from "../ui/confetti.js";
@@ -336,13 +336,22 @@ function dayOptions(sess) {
   } });
 }
 
+// After picking a swap: just today, or every time from now on.
+function swapWhen(to, from, pick) {
+  openSheet({ title: `Swap to ${to}`, render: (body, api) => {
+    body.innerHTML = `<div class="optlist">
+      <button class="optrow" data-w="once"><b class="tag">1</b><span>Just today<small>${esc(from)} comes back next time</small></span></button>
+      <button class="optrow" data-w="always"><b class="tag">∞</b><span>Every time<small>Use ${esc(to)} from now on</small></span></button></div>`;
+    body.querySelectorAll("[data-w]").forEach(b => b.onclick = () => { api.close(); setTimeout(() => pick(b.dataset.w), 0); });
+  } });
+}
 function subSheet(sess, i) {
   const w = weekRef(ui.b, ui.week), it = SS()[sess].items[i], cur = exFor(it, w, sess, i);
   let q = "";
   openSheet({ title: `Swap ${EX[it.x].name}`, tall: true, render: (body, api) => {
     const first = !body.firstChild;
     if (first) {
-      body.innerHTML = `<label class="search">${ICON.search}<input type="search" placeholder="Search exercises" aria-label="Search exercises" enterkeyhint="search"></label><div class="subnote">Applies from ${weekLabel(w).toLowerCase()} on</div><div class="subres"></div>`;
+      body.innerHTML = `<label class="search">${ICON.search}<input type="search" placeholder="Search exercises" aria-label="Search exercises" enterkeyhint="search"></label><div class="subnote">Pick one, then choose just today or every time</div><div class="subres"></div>`;
       body.querySelector("input").oninput = e => { q = e.target.value.trim().toLowerCase(); api.refresh(); };
     }
     const match = id => !q || (EX[id].name + " " + EX[id].muscles.join(" ") + " " + EX[id].equip).toLowerCase().includes(q);
@@ -353,9 +362,13 @@ function subSheet(sess, i) {
       + (rest.length ? `<div class="sublbl">Everything else</div><div class="sublist">${rest.map(r => row(r.id)).join("")}</div>` : "")
       + (!close.length && !rest.length ? `<div class="optnote">No match for “${esc(q)}”.</div>` : "");
     body.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => {
-      const id = b.dataset.pick; setSub(w, sess, i, id, it.x); api.close();
-      toast(id === it.x ? `Back to ${EX[it.x].name}.` : `${EX[id].name} from ${weekLabel(w).toLowerCase()} on.`);
-      setTimeout(() => { keep(rerender); const el = document.getElementById(`ex-${i}`); if (el) el.scrollIntoView({ block: "center" }); }, 0);
+      const id = b.dataset.pick; api.close();
+      const done = msg => { toast(msg); setTimeout(() => { keep(rerender); const el = document.getElementById(`ex-${i}`); if (el) el.scrollIntoView({ block: "center" }); }, 0); };
+      if (id === it.x) { setSubOnce(w, sess, i, null); if (activeSub(w, sess, i)) setSub(w, sess, i, it.x, it.x); done(`Back to ${EX[it.x].name}.`); return; }
+      setTimeout(() => swapWhen(EX[id].name, EX[it.x].name, when => {
+        if (when === "once") { setSubOnce(w, sess, i, id, it.x); done(`${EX[id].name} for today. ${EX[it.x].name} comes back next time.`); }
+        else { setSubOnce(w, sess, i, null); setSub(w, sess, i, id, it.x); done(`${EX[id].name} from now on.`); }
+      }), 260);
     });
   } });
 }

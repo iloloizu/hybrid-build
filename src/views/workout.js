@@ -3,7 +3,7 @@ import { ui } from "../state.js";
 import { EX, picFor } from "../plan/exercises.js";
 import { KNEE, dose, flagFor, fmt } from "../plan/plan.js";
 import { sget, sset, setKey, warmKey } from "../storage.js";
-import { exFor, extraSets, addSet, removeSet, totalSets, itemsFor, itemAt, removeExercise, ADD0 } from "../plan/custom.js";
+import { exFor, extraSets, addSet, removeSet, totalSets, itemsFor, itemAt, removeExercise, ADD0, lastOnce, isOnce, setSubOnce, hideHint } from "../plan/custom.js";
 import { weekLabel, dayDate } from "../plan/blocks.js";
 import { sessionMeta } from "../plans/index.js";
 import { afterLog, firstOpen, supersetLetters } from "../plan/flow.js";
@@ -38,7 +38,8 @@ export function buildEntries(W, sess, LAST) {
     for (let s = 0; s < total; s++) { const v = sget(setKey(W, sess, i, s)) || {}; sets.push(v); if (v.d) closed++; if (v.d && !v.z) done++; }
     const L = (LAST[x] || []).filter(Boolean), top = L.reduce((m, v) => (parseFloat(v.w) || 0) > (parseFloat(m && m.w) || 0) ? v : m, null);
     out.push({ it, i, x, ds, total, done: closed, lifted: done, sets, ss: it.added ? null : (it.ss == null ? null : it.ss),
-      name: x === it.x && it.label ? it.label : EX[x].name, prev: LAST[x] || [], last: top && parseFloat(top.w) ? `${top.w} lb` : it.bw ? "bodyweight" : "" });
+      name: x === it.x && it.label ? it.label : EX[x].name, prev: LAST[x] || [], last: top && parseFloat(top.w) ? `${top.w} lb` : it.bw ? "bodyweight" : "",
+      once: !it.added && x !== it.x && isOnce(W, sess, i), hint: !it.added && x === it.x && !closed ? lastOnce(W, sess, i) : null });
   });
   return out.map((e, k) => Object.assign(e, { k, hue: themeHue(k, HUES[k % HUES.length]) }));
 }
@@ -93,6 +94,8 @@ export function workoutHTML(ctx) {
       <button class="cardhead" data-zoom="${e.k}" aria-label="Zoom in on ${esc(e.name)}, ${e.done} of ${e.total} sets done">${pics(e.x, e.k === focus, "sm")}
         <span class="ch-txt"><b>${esc(e.name)}</b><small>${esc(scheme(e))}${e.last ? ` · last ${esc(e.last)}` : ""}${e.ds.note ? ` · ${esc(e.ds.note)}` : ""}</small></span>
         <span class="ch-count">${e.done}/${e.total}${ICON.zoom}</span></button>
+      ${e.once ? `<div class="swaphint"><span>Swapped for today. ${esc(EX[e.it.x].name)} comes back next time.</span></div>` : ""}
+      ${e.hint ? `<div class="swaphint"><span>Last time you swapped to <b>${esc(EX[e.hint].name)}</b>.</span><button class="sh-go" data-again="${e.k}">Swap again</button><button class="sh-x" data-nohint="${e.k}" aria-label="Don't remind me">${ICON.close}</button></div>` : ""}
       <div class="lrows">${rowsHTML(e, focus)}</div>
       <div class="cardacts">
         ${e.it.added ? `<button class="cact" data-act="rmex" data-k="${e.k}" aria-label="Remove ${esc(e.name)}">${ICON.close}<span>Remove</span></button>` : `<button class="cact" data-act="sub" data-k="${e.k}" aria-label="Swap ${esc(e.name)}">${ICON.swap}<span>Swap</span></button>`}
@@ -141,6 +144,8 @@ export function bindWorkout(ctx) {
   const { W, sess, entries } = ctx, app = document.getElementById("app");
   const on = (sel, fn) => app.querySelectorAll(sel).forEach(b => b.onclick = e => fn(b, e));
   on("[data-zoom]", b => openZoom(+b.dataset.zoom));
+  on("[data-again]", b => { const E = entries[+b.dataset.again]; setSubOnce(W, sess, E.i, E.hint, E.it.x); toast(`${EX[E.hint].name} for today.`); keep(rerender); });
+  on("[data-nohint]", b => { const E = entries[+b.dataset.nohint]; hideHint(W, sess, E.i); keep(rerender); });
   on("[data-act]", b => { const E = entries[+b.dataset.k]; if (E) cardAction(ctx, E, b.dataset.act); });
   on("[data-layout]", b => { store.set(LAYOUT_KEY, b.dataset.layout); keep(rerender); });
   const zg = document.getElementById("zoomgo"); if (zg) zg.onclick = () => { const o = firstOpen(entries); if (o >= 0) openZoom(o); };

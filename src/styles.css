@@ -830,3 +830,9 @@ label.pf-row { cursor: pointer; }
 .trybar .btnrow .bigbtn { display: inline-flex; gap: 8px; }
 .trybar .btnrow .bigbtn svg { width: 18px; height: 18px; }
 @media (max-width: 380px) { .pe-row { grid-template-columns: 44px minmax(0, 1fr); } .pe-row .thumb { width: 44px; height: 44px; } .pe-acts { grid-column: 1 / -1; justify-content: flex-end; } }
+.swaphint { display: flex; align-items: center; gap: 8px; margin: 2px 0 6px; padding: 8px 8px 8px 12px; border-radius: 12px; background: color-mix(in srgb, var(--ss) 12%, transparent); color: var(--ink); font-size: 13.5px; }
+.swaphint span { flex: 1; min-width: 0; }
+.swaphint b { font-weight: 800; }
+.sh-go { flex: none; height: 32px; padding: 0 12px; border-radius: 16px; border: 0; background: #fff; color: #121212; font: 800 13px var(--body); cursor: pointer; }
+.sh-x { flex: none; width: 32px; height: 32px; border-radius: 16px; border: 0; background: none; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
+.sh-x svg { width: 16px; height: 16px; }
