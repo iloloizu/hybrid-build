@@ -74,7 +74,7 @@ export function backupJSON() { return JSON.stringify({ app: "hybrid-build", v: 1
 export function restoreJSON(text) {
   let x; try { x = JSON.parse(text); } catch (e) { throw new Error("Not a backup file"); }
   const data = x && x.app === "hybrid-build" ? x.data : null;
-  if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Not a Move backup");
+  if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Not a Stride backup");
   const docs = Object.entries(data).filter(([k, v]) => DOC_RE.test(k) && v && typeof v === "object" && !Array.isArray(v));
   for (const k of Object.keys(STORE)) { delete STORE[k]; dirty.add(k); }
   for (const [k, v] of docs) { STORE[k] = Object.assign({}, v); dirty.add(k); }

@@ -1,7 +1,7 @@
 // Offline support. The app is one file, so: page is network-first (new versions
 // arrive when online, cached copy opens offline); fonts and icons are cache-first.
-const CACHE = "hb-v7";
-const SHELL = ["./", "./manifest.webmanifest", "./icon.svg", "./icon-192.png", "./apple-touch-icon.png"];
+const CACHE = "hb-v8";
+const SHELL = ["./", "./manifest.webmanifest", "./favicon-64.png", "./icon-192.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
   // App shell plus every exercise picture (listed in img/repdb/files.json), so workouts show offline.
