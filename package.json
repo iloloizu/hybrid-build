@@ -25,6 +25,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@supabase/supabase-js": "^2.119.1"
+    "@supabase/auth-js": "^2.119.1",
+    "@supabase/postgrest-js": "^2.119.1"
   }
 }
