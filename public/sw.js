@@ -1,13 +1,13 @@
 // Offline support. The app is one file, so: page is network-first (new versions
 // arrive when online, cached copy opens offline); fonts and icons are cache-first.
-const CACHE = "hb-v9";
+const CACHE = "hb-v10";
 const SHELL = ["./", "./manifest.webmanifest", "./favicon-64.png", "./icon-192.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
   // App shell plus every exercise picture (listed in img/repdb/files.json), so workouts show offline.
   e.waitUntil(caches.open(CACHE).then(async c => {
     await c.addAll(SHELL);
-    try { const list = await (await fetch("./img/repdb/files.json")).json(); await c.addAll(list.map(f => "./img/repdb/" + f).concat(["broadjump", "bayesian", "backwalk", "yraise", "x-mid-thigh-pull-use-straps"].flatMap(n => [`./img/own/${n}-start.webp`, `./img/own/${n}-peak.webp`]))); } catch (err) { /* pictures fill in as they're viewed */ }
+    try { const list = await (await fetch("./img/repdb/files.json")).json(); await c.addAll(list.map(f => "./img/repdb/" + f).concat(["broadjump", "bayesian", "backwalk", "yraise", "x-mid-thigh-pull-use-straps", "x-ez-bar-row-to-press", "x-plank-toe-touches", "x-mb-wide-pushup"].flatMap(n => [`./img/own/${n}-start.webp`, `./img/own/${n}-peak.webp`]))); } catch (err) { /* pictures fill in as they're viewed */ }
   }).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", e => {
