@@ -16,7 +16,7 @@ export function parse(h) {
     return { name: "week", w: wk };
   }
   if (p[0] === "block") return { name: "block" };
-  if (p[0] === "settings") return { name: "settings" };
+  if (p[0] === "settings") return { name: "settings", sub: p[1] || "" };
   if (["welcome", "signup", "signin", "reset", "profile"].includes(p[0])) return { name: p[0] };
   if (p[0] === "exercises") return { name: "library" };
   if (p[0] === "explore") return { name: "explore" };

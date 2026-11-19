@@ -3,6 +3,7 @@ import { store } from "./platform/index.js";
 export let STORE = {};
 try { STORE = JSON.parse(store.get("hb4") || "{}") || {}; } catch (e) {}
 export let DB = null, UID = null, ACTS = {}, SYNC = null;
+export function setActs(m) { ACTS = m || {}; }
 export const dirty = new Set();
 export function persistLocal() { store.set("hb4", JSON.stringify(STORE)); }
 export const docName = k => k.split("|")[0]; // group keys into docs: "w3s2|..." -> doc w3s2

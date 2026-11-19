@@ -1,3 +1,4 @@
+import { startStrava } from "./strava.js";
 import { startAccount } from "./account.js";
 import { welcomed, hasSession } from "./views/account.js";
 import { route } from "./router.js";
@@ -21,6 +22,7 @@ boot();
 connect(safeRender);
 startAccount(() => { const r = route(); if (ACCT.has(r.name) && !(document.activeElement && document.activeElement.tagName === "INPUT")) keep(rerender); else safeRender(); });
 window.addEventListener("online", () => flush());
+startStrava(() => { const r = route(); if (r.name === "settings") keep(rerender); else safeRender(); });
 
 // Installable + offline when self-hosted. Skipped inside the Claude artifact host and from file://.
 if (import.meta.env.PROD && "serviceWorker" in navigator && location.protocol.startsWith("http") && !(window.claude && window.claude.use)) {

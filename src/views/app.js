@@ -43,7 +43,7 @@ function draw(r) {
     case "day": renderDay(r.w, r.d, false); break;
     case "week": renderWeek(r.w || ui.week || 1); break;
     case "block": renderBlock(); break;
-    case "settings": renderSettings(); break;
+    case "settings": renderSettings(r.sub); break;
     case "welcome": renderWelcome(); break;
     case "signup": case "signin": case "reset": renderAuth(r.name); break;
     case "profile": renderProfile(); break;

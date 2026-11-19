@@ -153,7 +153,7 @@ export function bindWorkout(ctx) {
       const wi = app.querySelector(`input[data-k="${e.k}"][data-s="${s}"][data-lw]`);
       if (!v.w && wi && wi.value.trim()) v.w = wi.value.trim();
       if (!v.r) v.r = String(e.ds.r);
-      v.d = 1; buzz(); popped = e.k + ":" + s;
+      v.d = 1; v.t = Date.now(); buzz(); popped = e.k + ":" + s;
       const f = afterLog(entries, e.k);
       if (f.goTo != null) { goTo = f.goTo; stopRest(); } else startRest(f.rest);
     } else v.d = 0;
