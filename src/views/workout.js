@@ -93,7 +93,13 @@ export function workoutHTML(ctx) {
       <button class="cardhead" data-zoom="${e.k}" aria-label="Zoom in on ${esc(e.name)}, ${e.done} of ${e.total} sets done">${pics(e.x, e.k === focus, "sm")}
         <span class="ch-txt"><b>${esc(e.name)}</b><small>${esc(scheme(e))}${e.last ? ` · last ${esc(e.last)}` : ""}${e.ds.note ? ` · ${esc(e.ds.note)}` : ""}</small></span>
         <span class="ch-count">${e.done}/${e.total}${ICON.zoom}</span></button>
-      <div class="lrows">${rowsHTML(e, focus)}</div></section>`).join("")}</div>`;
+      <div class="lrows">${rowsHTML(e, focus)}</div>
+      <div class="cardacts">
+        ${e.it.added ? `<button class="cact" data-act="rmex" data-k="${e.k}" aria-label="Remove ${esc(e.name)}">${ICON.close}<span>Remove</span></button>` : `<button class="cact" data-act="sub" data-k="${e.k}" aria-label="Swap ${esc(e.name)}">${ICON.swap}<span>Swap</span></button>`}
+        <button class="cact" data-act="add" data-k="${e.k}" aria-label="Add a set to ${esc(e.name)}">${ICON.plus}<span>Set</span></button>
+        ${extraSets(ctx.W, ctx.sess, e.i) ? `<button class="cact" data-act="rm" data-k="${e.k}" aria-label="Remove the added set">${ICON.minus}<span>Set</span></button>` : ""}
+        <button class="cact" data-act="more" data-k="${e.k}" aria-label="More for ${esc(e.name)}">${ICON.more}</button>
+      </div></section>`).join("")}</div>`;
   }
   h += extra.end;
   return h;
@@ -135,6 +141,7 @@ export function bindWorkout(ctx) {
   const { W, sess, entries } = ctx, app = document.getElementById("app");
   const on = (sel, fn) => app.querySelectorAll(sel).forEach(b => b.onclick = e => fn(b, e));
   on("[data-zoom]", b => openZoom(+b.dataset.zoom));
+  on("[data-act]", b => { const E = entries[+b.dataset.k]; if (E) cardAction(ctx, E, b.dataset.act); });
   on("[data-layout]", b => { store.set(LAYOUT_KEY, b.dataset.layout); keep(rerender); });
   const zg = document.getElementById("zoomgo"); if (zg) zg.onclick = () => { const o = firstOpen(entries); if (o >= 0) openZoom(o); };
   // Log / unlog a set. Supersets move to the partner; rest (2:00) starts after the pair.
@@ -178,6 +185,16 @@ export function bindWorkout(ctx) {
   } else { document.body.classList.remove("zooming"); if (unsubRest) { unsubRest(); unsubRest = null; } }
 }
 let unsubRest = null;
+
+// Swap / + set / − set / ⋯ under each card in the overview.
+function cardAction(ctx, E, act) {
+  const { W, sess, hooks } = ctx;
+  if (act === "sub") hooks.subSheet(sess, E.i);
+  else if (act === "add") { addSet(W, sess, E.i); keep(rerender); }
+  else if (act === "rm") { sset(setKey(W, sess, E.i, totalSets(itemAt(W, sess, E.i), W, sess, E.i) - 1), null); removeSet(W, sess, E.i); keep(rerender); }
+  else if (act === "rmex") { removeExercise(W, sess, E.i - ADD0); toast(`${E.name} removed.`); keep(rerender); }
+  else exerciseOptions(ctx, E);
+}
 
 // ⋯ in the zoomed view: how-to, substitute, sets, remove an added exercise.
 function exerciseOptions(ctx, E) {
