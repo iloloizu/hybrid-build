@@ -1,6 +1,6 @@
 # Hybrid Build
 
-Live: https://iloloizu.github.io/hybrid-build/ (password-protected; every merge to main redeploys it)
+Live: https://iloloizu.github.io/hybrid-build/ (every merge to main redeploys it)
 
 Ilolo's 10-week strength + marathon hybrid training app.
 
@@ -23,17 +23,9 @@ Tab bar (left rail on iPad landscape): **Today** (today's session) · **Week** (
 
 Every set, check and schedule change saves to the phone the moment you enter it, with no network needed. The app asks the browser to keep that data permanently, and **Back up** / **Restore** at the bottom of the plan downloads or reloads all logs as a JSON file. Inside the Claude artifact, logs also sync to the artifact's database as before.
 
-## Hosting (GitHub Pages, password-locked)
+## Hosting (GitHub Pages)
 
-Every push to `main` runs `.github/workflows/pages.yml`: tests, build, then `scripts/lock.mjs` encrypts the page with the `PAGE_PASSWORD` repo secret (AES-GCM, PBKDF2 600k rounds). The published URL shows only a password box; the plan and code inside the page aren't readable without it. After the first unlock the key is remembered on that device, so it opens straight in, offline too. If the secret isn't set, the workflow skips the deploy rather than publish an unlocked page.
-
-One-time setup:
-1. Settings → General → Danger Zone → Change visibility → Public (free Pages needs a public repo; the source is then readable on GitHub, logs never are since they stay on the phone).
-2. Settings → Pages → Source: **GitHub Actions**.
-3. Settings → Secrets and variables → Actions → New repository secret: `PAGE_PASSWORD` (10+ characters).
-4. Actions → Deploy to GitHub Pages → Run workflow. The app is then at `https://iloloizu.github.io/hybrid-build/`.
-
-Changing the password: update the secret and re-run the workflow. Each device asks once more.
+Every push to `main` runs `.github/workflows/pages.yml`: tests, build, deploy. Workout logs stay on each device (localStorage); nothing personal is in the published page.
 
 ## Install on iPhone
 
