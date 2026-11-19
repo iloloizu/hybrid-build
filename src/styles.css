@@ -836,3 +836,20 @@ label.pf-row { cursor: pointer; }
 .sh-go { flex: none; height: 32px; padding: 0 12px; border-radius: 16px; border: 0; background: #fff; color: #121212; font: 800 13px var(--body); cursor: pointer; }
 .sh-x { flex: none; width: 32px; height: 32px; border-radius: 16px; border: 0; background: none; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
 .sh-x svg { width: 16px; height: 16px; }
+
+/* ===== voice logging ===== */
+.micbtn { position: fixed; z-index: 41; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink, #0d1f18); display: grid; place-items: center; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,.45); }
+.micbtn svg { width: 26px; height: 26px; }
+@media (min-width: 960px) { .micbtn { right: 28px; bottom: 28px; } }
+body.locked .micbtn { display: none; }
+.zm-tr { display: flex; }
+.vc-status { color: var(--muted); font-weight: 700; text-align: center; min-height: 1.4em; }
+.vc-in { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: 16px; background: rgba(255,255,255,.07); color: var(--muted); }
+.vc-in > svg { width: 22px; height: 22px; flex: none; }
+.vc-in input { flex: 1; min-width: 0; height: 48px; background: none; border: 0; outline: none; color: var(--ink); font: 700 18px var(--body); }
+.vc-mic { flex: none; order: 2; width: 48px; height: 48px; border-radius: 50%; border: 0; background: rgba(255,255,255,.1); color: var(--ink); display: grid; place-items: center; cursor: pointer; }
+.vc-mic svg { width: 22px; height: 22px; }
+.vc-mic.on { background: var(--accent); color: var(--accent-ink, #0d1f18); animation: vcpulse 1.2s ease-in-out infinite; }
+@keyframes vcpulse { 50% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 25%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .vc-mic.on { animation: none; } }
+.vc-plan { padding: 12px 14px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 12%, transparent); font: 800 16px var(--body); }
