@@ -704,3 +704,7 @@ body.zooming { padding-left: 0 !important; }
 .sw[aria-checked="true"] { color: var(--ink); }
 .sw[aria-checked="true"] i { outline: 2px solid #fff; outline-offset: 3px; }
 .sw input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+.credits p { margin: 0 0 10px; } .credits b { color: var(--ink); }
+.credits ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.credits li { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 14px; }
+.credits li small { color: var(--muted); opacity: .7; }

@@ -95,7 +95,7 @@ export function workoutHTML(ctx) {
         <span class="ch-count">${e.done}/${e.total}${ICON.zoom}</span></button>
       <div class="lrows">${rowsHTML(e, focus)}</div></section>`).join("")}</div>`;
   }
-  h += extra.end + `<p class="credit">Exercise data by <a href="https://repdb.co" target="_blank" rel="noopener noreferrer">RepDB (repdb.co)</a></p>`;
+  h += extra.end;
   return h;
 }
 
