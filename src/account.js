@@ -34,9 +34,16 @@ const msg = e => {
 };
 const run = async p => { const { data, error } = await p; if (error) throw new Error(msg(error)); return data; };
 
+// Accounts are created by the project's signup function (confirmed, no email round trip),
+// then signed in right away.
 export async function signUp(email, password, name) {
-  const d = await run(sb.auth.signUp({ email, password, options: { data: { display_name: name || null }, emailRedirectTo: here() } }));
-  return { confirm: !d.session };
+  let r;
+  try { r = await fetch(URL_ + "/functions/v1/signup", { method: "POST", headers: { "Content-Type": "application/json", apikey: KEY }, body: JSON.stringify({ email, password, name }) }); }
+  catch (e) { throw new Error(msg(e)); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || "Couldn't create the account. Try again.");
+  await signIn(email, password);
+  return { confirm: false };
 }
 export const signIn = (email, password) => run(sb.auth.signInWithPassword({ email, password }));
 export const sendReset = email => run(sb.auth.resetPasswordForEmail(email, { redirectTo: here() }));
