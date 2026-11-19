@@ -19,6 +19,7 @@ import { startRest } from "../ui/timer.js";
 import { buzz, keepAwake } from "../ui/device.js";
 import { todayWD } from "./today.js";
 import { rerender } from "./app.js";
+import { STRAVA, autoPost, postWorkout } from "../strava.js";
 import { buildEntries, workoutHTML, zoomHTML, bindWorkout, resetZoom } from "./workout.js";
 
 /* ---------- day screen: one session, nothing else ---------- */
@@ -183,14 +184,14 @@ function finishSheet(W, d, sess) {
   const date = dayDate(W, d), k = iso(date), [n, tot] = progress(W, sess);
   // Per exercise: real sets only (not the 0s from closing out), compared with the last time you did it.
   const before = sess >= 0 ? lastLogs(W, d) : {}, num = v => parseFloat(v && v.w) || 0, avg = a => a.reduce((t, v) => t + num(v), 0) / a.length;
-  let vol = 0, real = 0; const rows = [];
+  let vol = 0, real = 0; const rows = [], bwRows = [], times = [];
   if (sess >= 0) itemsFor(W, sess).forEach(({ it, i }) => {
-    const x = exFor(it, W, sess, i), sets = [];
-    for (let s = 0; s < 12; s++) { const v = sget(setKey(W, sess, i, s)); if (v && v.d && !v.z) { real++; if (num(v)) sets.push(v); } }
-    if (!sets.length) return;
+    const x = exFor(it, W, sess, i), sets = [], bw = [];
+    for (let s = 0; s < 12; s++) { const v = sget(setKey(W, sess, i, s)); if (v && v.d && !v.z) { real++; times.push(v.t || 0); if (num(v)) sets.push(v); else bw.push(`${v.r} reps`); } }
+    if (!sets.length) { if (bw.length) bwRows.push(`${EX[x].name}: ${bw.join(", ")}`); return; }
     const v0 = sets.reduce((t, v) => t + num(v) * (parseInt(v.r) || 0), 0); vol += v0;
     const prev = (before[x] || []).filter(v => v && num(v)), a = avg(sets), diff = prev.length ? Math.round((a - avg(prev)) * 10) / 10 : null;
-    rows.push({ name: EX[x].name, a: Math.round(a * 10) / 10, diff, v0 });
+    rows.push({ name: EX[x].name, a: Math.round(a * 10) / 10, diff, v0, sets: sets.map(v => `${v.w}×${v.r}`) });
   });
   const trend = r => r.diff == null ? `<em class="new">New</em>` : r.diff > 0 ? `<em class="up">▲ ${r.diff}</em>` : r.diff < 0 ? `<em class="down">▼ ${Math.abs(r.diff)}</em>` : `<em class="same">=</em>`;
   const ups = rows.filter(r => r.diff > 0).length, downs = rows.filter(r => r.diff < 0).length;
@@ -210,9 +211,25 @@ function finishSheet(W, d, sess) {
       // Close out anything not lifted: 0 reps, marked so it never becomes a remembered weight.
       if (sess >= 0) itemsFor(W, sess).forEach(({ it, i }) => { const nSets = totalSets(it, W, sess, i); for (let s = 0; s < nSets; s++) { const key = setKey(W, sess, i, s), v = sget(key) || {}; if (!v.d) sset(key, Object.assign({}, v, { r: "0", d: 1, z: 1 })); } });
       api.close(); buzz(30); keepAwake(false); confetti();
+      if (sess >= 0 && real && STRAVA.connected && STRAVA.canPost && autoPost()) sendToStrava({ W, sess, k, vol, real, rows, bwRows, times });
       setTimeout(() => { rerender(); setTimeout(() => stepDay(1), 650); }, 250);
     };
   } });
+}
+
+// Finished workout → Strava (one activity per day's session; see strava.js for no-double-posting).
+function sendToStrava({ W, sess, k, vol, real, rows, bwRows, times }) {
+  const S = sessionsFor(W)[sess] || {}, t = times.filter(Boolean).sort((a, b) => a - b);
+  const planned = (sessionMeta(S).mins || 50) * 60;
+  const elapsed = t.length > 1 ? Math.max(600, Math.round((t[t.length - 1] - t[0]) / 1000) + 180) : planned;
+  const startMs = t.length ? t[0] - 120000 : Date.now() - elapsed * 1000, d = new Date(startMs);
+  const pad = n => String(n).padStart(2, "0");
+  const start = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+  const lines = rows.map(r => `${r.name}: ${r.sets.join(", ")}`).concat(bwRows);
+  const description = [`${vol ? Math.round(vol).toLocaleString() + " lb volume · " : ""}${real} sets`, "", ...lines, "", "Logged with Stride"].join("\n");
+  postWorkout({ key: `${k}|${sess}`, name: S.name || "Workout", description, start, startEpoch: startMs, elapsed })
+    .then(r => toast(r.mode === "created" ? "Posted to Strava." : "Added to your Strava workout."))
+    .catch(e => toast(`Strava: ${e.message}`));
 }
 
 /* ---------- sheets ---------- */
