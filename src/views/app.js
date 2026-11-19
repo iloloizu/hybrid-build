@@ -25,10 +25,11 @@ let last = null, from = { label: "Exercises", path: "#/exercises" };
 
 function tabFor(r) {
   if (r.name === "today") return "today";
-  if (r.name === "day") { const t = todayWD(); return t && t.b === ui.b && t.w === r.w && t.d === r.d && last && last.tab === "today" ? "today" : "week"; }
+  if (r.name === "day") { const t = todayWD(); return t && t.b === ui.b && t.w === r.w && t.d === r.d ? "today" : "week"; }
   if (r.name === "ex") return (last && last.tab) || "library";
   if (r.name === "plan") return "explore";
-  if (["settings", "signup", "signin", "reset", "profile", "welcome"].includes(r.name)) return "block";
+  if (r.name === "settings" || r.name === "profile") return r.name;
+  if (["signup", "signin", "reset", "welcome"].includes(r.name)) return "profile";
   return r.name === "library" ? "library" : r.name;
 }
 
@@ -64,7 +65,18 @@ function draw(r) {
 
 export function boot() {
   const tabs = document.getElementById("tabs");
-  tabs.innerHTML = TABS.map(([k, l, p]) => `<a href="${p}" data-tab="${k}">${ICON[k]}<span>${l}</span></a>`).join("");
+  tabs.innerHTML = TABS.map(([k, l, p]) => `<a href="${p}" data-tab="${k}">${ICON[k]}<span>${l}</span></a>`).join("")
+    + `<i class="menu-only menu-sep"></i><a class="menu-only" href="#/profile" data-tab="profile">${ICON.user}<span>Profile</span></a><a class="menu-only" href="#/settings" data-tab="settings">${ICON.gear}<span>Settings</span></a>`;
+  // Phones and small tablets: the tabs live behind a hamburger button.
+  const mb = document.createElement("button"); mb.id = "menubtn"; mb.className = "menubtn"; mb.setAttribute("aria-label", "Menu"); mb.setAttribute("aria-controls", "tabs"); mb.setAttribute("aria-expanded", "false");
+  mb.innerHTML = `${ICON.menu}${ICON.close}`;
+  const scrim = document.createElement("div"); scrim.className = "navscrim";
+  document.body.append(scrim, mb);
+  const setMenu = open => { document.body.classList.toggle("navopen", open); mb.setAttribute("aria-expanded", String(open)); if (open) (tabs.querySelector('[aria-current="page"]') || tabs.querySelector("a")).focus({ preventScroll: true }); };
+  mb.onclick = () => setMenu(!document.body.classList.contains("navopen"));
+  scrim.onclick = () => setMenu(false);
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && document.body.classList.contains("navopen")) { setMenu(false); mb.focus(); } });
+  tabs.addEventListener("click", () => setMenu(false));
   tabs.querySelectorAll("a").forEach(a => a.onclick = e => { e.preventDefault(); const r = route(); if (a.getAttribute("aria-current") === "page" && (r.name !== "day" && r.name !== "ex")) { window.scrollTo({ top: 0, behavior: "smooth" }); return; } go(a.getAttribute("href")); });
   onRoute(({ scroll }) => { draw(route()); window.scrollTo(0, scroll || 0); });
   onSwipe(document.getElementById("app"), k => { if (sheetOpen()) return; const r = route(); if (r.name === "day" || r.name === "today") stepDay(k); else if (r.name === "week") stepWeek(k); });
