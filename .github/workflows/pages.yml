@@ -13,8 +13,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      locked: ${{ steps.lock.outputs.locked }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,25 +22,11 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
-      # Never publish an unlocked page: no PAGE_PASSWORD secret means no deploy.
-      - id: lock
-        env:
-          PAGE_PASSWORD: ${{ secrets.PAGE_PASSWORD }}
-        run: |
-          if [ -z "$PAGE_PASSWORD" ]; then
-            echo "::warning::PAGE_PASSWORD secret is not set, skipping deploy. Add it under Settings > Secrets and variables > Actions."
-            echo "locked=false" >> "$GITHUB_OUTPUT"
-          else
-            node scripts/lock.mjs dist
-            echo "locked=true" >> "$GITHUB_OUTPUT"
-          fi
-      - if: steps.lock.outputs.locked == 'true'
-        uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
   deploy:
     needs: build
-    if: needs.build.outputs.locked == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

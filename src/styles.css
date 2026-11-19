@@ -672,3 +672,22 @@ html:has(body.zooming) { scroll-padding-bottom: 16px; }
 /* Exercise pictures in black and white (neutral figure), on a neutral tile */
 .pics img, .thumb img.rd, .still.rd img, .picstage img { filter: grayscale(1) contrast(1.06); }
 .pics, .thumb, .thumb img.rd, .still.rd img, .picstage { background: #e9e9e9; }
+
+/* Gradient spans the screen exactly (no sideways scroll): positioned against the page, not the column */
+.wo { position: static; }
+.wo-bg { position: absolute; left: 0; right: 0; width: auto; }
+@media (min-width: 700px) { .wo-bg { left: 0; right: 0; } }
+html, body { overflow-x: clip; }
+
+/* Today on wider screens: a comfortable centred column (gradient still fills the screen) */
+@media (min-width: 700px) {
+  .wrap.wo { max-width: 760px; }
+  .wrap.wo.zoom { max-width: 560px; }
+  .wo.zoom .zm-pic { width: min(320px, 40vh); }
+}
+body.zooming { padding-left: 0 !important; }
+/* Short landscape screens: keep the picture small so the sets stay in view */
+@media (max-height: 500px) and (orientation: landscape) {
+  .wo.zoom .zm-pic { width: min(150px, 34vh); }
+  .wo-head h1 { font-size: 28px; }
+}
