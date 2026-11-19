@@ -20,6 +20,7 @@ import { buzz, keepAwake } from "../ui/device.js";
 import { todayWD } from "./today.js";
 import { rerender } from "./app.js";
 import { STRAVA, autoPost, postWorkout } from "../strava.js";
+import { stravaType } from "../plan/strava-ex.js";
 import { buildEntries, workoutHTML, zoomHTML, bindWorkout, resetZoom } from "./workout.js";
 
 /* ---------- day screen: one session, nothing else ---------- */
@@ -184,10 +185,10 @@ function finishSheet(W, d, sess) {
   const date = dayDate(W, d), k = iso(date), [n, tot] = progress(W, sess);
   // Per exercise: real sets only (not the 0s from closing out), compared with the last time you did it.
   const before = sess >= 0 ? lastLogs(W, d) : {}, num = v => parseFloat(v && v.w) || 0, avg = a => a.reduce((t, v) => t + num(v), 0) / a.length;
-  let vol = 0, real = 0; const rows = [], bwRows = [], times = [];
+  let vol = 0, real = 0; const rows = [], bwRows = [], times = [], svSets = [];
   if (sess >= 0) itemsFor(W, sess).forEach(({ it, i }) => {
     const x = exFor(it, W, sess, i), sets = [], bw = [];
-    for (let s = 0; s < 12; s++) { const v = sget(setKey(W, sess, i, s)); if (v && v.d && !v.z) { real++; times.push(v.t || 0); if (num(v)) sets.push(v); else bw.push(`${v.r} reps`); } }
+    for (let s = 0; s < 12; s++) { const v = sget(setKey(W, sess, i, s)); if (v && v.d && !v.z) { real++; times.push(v.t || 0); svSets.push(stravaSet(x, v)); if (num(v)) sets.push(v); else bw.push(`${v.r} reps`); } }
     if (!sets.length) { if (bw.length) bwRows.push(`${EX[x].name}: ${bw.join(", ")}`); return; }
     const v0 = sets.reduce((t, v) => t + num(v) * (parseInt(v.r) || 0), 0); vol += v0;
     const prev = (before[x] || []).filter(v => v && num(v)), a = avg(sets), diff = prev.length ? Math.round((a - avg(prev)) * 10) / 10 : null;
@@ -215,14 +216,22 @@ function finishSheet(W, d, sess) {
       if (sess >= 0) itemsFor(W, sess).forEach(({ it, i }) => { const nSets = totalSets(it, W, sess, i); for (let s = 0; s < nSets; s++) { const key = setKey(W, sess, i, s), v = sget(key) || {}; if (!v.d) sset(key, Object.assign({}, v, { r: "0", d: 1, z: 1 })); } });
       const sv = body.querySelector("#fin-sv"), post = svOK && sv && sv.checked;
       api.close(); buzz(30); keepAwake(false); confetti();
-      if (post) sendToStrava({ W, sess, k, vol, real, rows, bwRows, times });
+      if (post) sendToStrava({ W, sess, k, vol, real, rows, bwRows, times, svSets });
       setTimeout(() => { rerender(); setTimeout(() => stepDay(1), 650); }, 250);
     };
   } });
 }
 
+// One logged set in Strava's strength format: exercise, reps or seconds, weight in kg, when it was ticked.
+function stravaSet(x, v) {
+  const r = String(v.r || ""), n = parseFloat(r) || 0, kg = (parseFloat(v.w) || 0) / 2.20462;
+  const o = { exercise_type: stravaType(x, EX[x] && EX[x].name), at: v.t || 0 };
+  if (/\d\s*s\b|sec/i.test(r)) o.duration = n; else if (/min/i.test(r)) o.duration = n * 60; else if (n) o.repetitions = Math.round(n);
+  if (kg) o.weight = Math.round(kg * 10) / 10;
+  return o;
+}
 // Finished workout → Strava (one activity per day's session; see strava.js for no-double-posting).
-function sendToStrava({ W, sess, k, vol, real, rows, bwRows, times }) {
+function sendToStrava({ W, sess, k, vol, real, rows, bwRows, times, svSets }) {
   const today = iso(new Date());
   if (k > today) { toast("Strava gets it on the day."); return; }
   const S = sessionsFor(W)[sess] || {}, planned = (sessionMeta(S).mins || 50) * 60;
@@ -234,8 +243,10 @@ function sendToStrava({ W, sess, k, vol, real, rows, bwRows, times }) {
   const start = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
   const lines = rows.map(r => `${r.name}: ${r.sets.join(", ")}`).concat(bwRows);
   const description = [`${vol ? Math.round(vol).toLocaleString() + " lb volume · " : ""}${real} sets`, "", ...lines, "", "Logged with Stride"].join("\n");
-  postWorkout({ key: `${k}|${sess}`, name: S.name || "Workout", description, start, startEpoch: startMs, elapsed })
-    .then(r => toast(r.mode === "created" ? "Posted to Strava." : "Added to your Strava workout."))
+  // Sets keep their own tick time only when it was on that day.
+  const sets = svSets.map(x => Object.assign({}, x, { at: x.at && iso(new Date(x.at)) === k ? x.at : 0 }));
+  postWorkout({ key: `${k}|${sess}`, name: S.name || "Workout", description, start, startEpoch: startMs, elapsed, utcOffset: -new Date(startMs).getTimezoneOffset() * 60, sets })
+    .then(r => toast(r.mode === "created" ? "Posted to Strava." : r.mode === "processing" ? "Sent to Strava. It'll show in a minute." : r.mode === "merged" ? "Added to your watch workout on Strava." : "Updated on Strava."))
     .catch(e => toast(`Strava: ${e.message}`));
 }
 
