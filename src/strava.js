@@ -1,5 +1,5 @@
 /* ---------- Strava: connect, runs in, workouts out (through the project's strava function) ---------- */
-import { sb, signedIn, onAccount } from "./account.js";
+import { sb, signedIn, onAccount, USER } from "./account.js";
 import { setActs } from "./storage.js";
 import { store } from "./platform/index.js";
 
@@ -11,8 +11,10 @@ const subs = new Set();
 export const onStrava = fn => subs.add(fn);
 const emit = () => subs.forEach(f => { try { f(); } catch (e) {} });
 
-export const autoPost = () => store.get("hb-strava-auto") !== "0";
-export const setAutoPost = on => store.set("hb-strava-auto", on ? "1" : "0");
+// Per person, not per phone.
+const autoKey = () => "hb-strava-auto-" + (USER ? USER.id : "none");
+export const autoPost = () => store.get(autoKey()) !== "0";
+export const setAutoPost = on => store.set(autoKey(), on ? "1" : "0");
 
 async function call(action, body = {}) {
   const { data } = await sb.auth.getSession();
@@ -26,7 +28,7 @@ async function call(action, body = {}) {
 }
 
 export async function refreshStatus() {
-  if (!signedIn()) { STRAVA = { connected: false, name: null, canPost: false, checked: true }; emit(); return STRAVA; }
+  if (!signedIn()) { STRAVA = { connected: false, name: null, canPost: false, checked: true }; setActs({}); emit(); return STRAVA; }
   try { STRAVA = Object.assign(await call("status"), { checked: true }); } catch (e) { STRAVA.checked = true; }
   emit(); return STRAVA;
 }
@@ -57,5 +59,6 @@ export function startStrava(onChange) {
   if (started) return; started = true;
   if (onChange) subs.add(onChange);
   let last = null;
-  onAccount(async () => { const id = signedIn() ? "in" : "out"; if (id === last) return; last = id; await refreshStatus(); importRuns(); });
+  // Whenever the signed-in person changes, drop the last person's runs and load this one's.
+  onAccount(async () => { const id = signedIn() ? USER.id : "out"; if (id === last) return; last = id; setActs({}); await refreshStatus(); importRuns(); });
 }
