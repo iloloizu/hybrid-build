@@ -7,6 +7,7 @@ import { exFor, extraSets, addSet, removeSet, totalSets, itemsFor, itemAt, remov
 import { weekLabel, dayDate } from "../plan/blocks.js";
 import { sessionMeta } from "../plans/index.js";
 import { afterLog, firstOpen, supersetLetters } from "../plan/flow.js";
+import { parse, matchExercise } from "../plan/voice.js";
 import { esc, thumbHTML, CHECK, keep } from "./common.js";
 import { go, pushOverlay, interceptPop } from "../router.js";
 import { ICON } from "../ui/icons.js";
@@ -104,7 +105,7 @@ export function workoutHTML(ctx) {
         <button class="cact" data-act="more" data-k="${e.k}" aria-label="More for ${esc(e.name)}">${ICON.more}</button>
       </div></section>`).join("")}</div>`;
   }
-  h += extra.end;
+  h += extra.end + `<button class="micbtn" id="micbtn" aria-label="Log by voice: say something like 5 by 5 bench at 145">${ICON.mic}</button>`;
   return h;
 }
 
@@ -116,7 +117,7 @@ export function zoomHTML(ctx) {
   return `<div class="wo-bg" style="--hue:${E.hue}"><i class="wo-hue"></i><i class="wo-fade"></i></div>
     <div class="zm-top"><button class="iconbtn" id="zback" aria-label="Back to the whole workout">${ICON.down}</button>
       <span class="zm-title">${esc(String(s.name).toUpperCase())}<b>${k + 1} of ${entries.length}</b></span>
-      <button class="iconbtn" id="zopts" aria-label="Exercise options">${ICON.more}</button></div>
+      <span class="zm-tr"><button class="iconbtn" id="zmic" aria-label="Log by voice">${ICON.mic}</button><button class="iconbtn" id="zopts" aria-label="Exercise options">${ICON.more}</button></span></div>
     <div class="zm-pic">${pics(E.x, true, "big")}</div>
     ${E.ss != null ? `<span class="zm-ss">Superset ${letters[E.ss]} · ${pos} of ${grp.length}${partner && partner !== E ? ` · then ${esc(partner.name)}` : ""}</span>` : ""}
     <div class="zm-name"><h2>${esc(E.name)}</h2><span>${esc(scheme(E))}${E.last ? ` · last time ${esc(E.last)}` : ""}${stopText(P) ? ` · ${esc(stopText(P))}` : ""}</span></div>
@@ -144,6 +145,8 @@ export function bindWorkout(ctx) {
   const { W, sess, entries } = ctx, app = document.getElementById("app");
   const on = (sel, fn) => app.querySelectorAll(sel).forEach(b => b.onclick = e => fn(b, e));
   on("[data-zoom]", b => openZoom(+b.dataset.zoom));
+  const mic = document.getElementById("micbtn") || document.getElementById("zmic");
+  if (mic) mic.onclick = () => voiceSheet(ctx, ui.zoom != null ? Math.min(Math.max(ui.zoom, 0), entries.length - 1) : (focusOverride != null && entries[focusOverride] ? focusOverride : firstOpen(entries)));
   on("[data-again]", b => { const E = entries[+b.dataset.again]; setSubOnce(W, sess, E.i, E.hint, E.it.x); toast(`${EX[E.hint].name} for today.`); keep(rerender); });
   on("[data-nohint]", b => { const E = entries[+b.dataset.nohint]; hideHint(W, sess, E.i); keep(rerender); });
   on("[data-act]", b => { const E = entries[+b.dataset.k]; if (E) cardAction(ctx, E, b.dataset.act); });
@@ -190,6 +193,55 @@ export function bindWorkout(ctx) {
   } else { document.body.classList.remove("zooming"); if (unsubRest) { unsubRest(); unsubRest = null; } }
 }
 let unsubRest = null;
+
+/* ---------- log by voice (or typing): "5x5 bench at 145" ----------
+   Uses the phone's own speech recognition (no AI, no cost); falls back to typing,
+   where the keyboard's mic works too. Shows what it understood before logging. */
+const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+function voiceSheet(ctx, defK) {
+  const { W, sess, entries } = ctx; let rec = null;
+  const plan = text => {
+    const p = parse(text), e = matchExercise(p.words, entries) || entries[defK >= 0 ? defK : 0];
+    if (!e) return null;
+    const lb = p.weight == null ? null : p.kg ? Math.round(p.weight * 2.20462 * 2) / 2 : p.weight;
+    const reps = p.reps || parseInt(e.ds.r) || null, sets = Math.min(p.sets || 1, 12);
+    return { e, sets, reps, lb, named: !!matchExercise(p.words, entries), ok: !!(reps || lb) };
+  };
+  const say = P => !P ? "Say an exercise, sets, reps and weight." : `${P.e.name} · ${P.sets} × ${P.reps || "?"}${P.lb ? ` · ${P.lb} lb` : ""}${P.named ? "" : " (current exercise)"}`;
+  openSheet({ title: "Log by voice", onClose: () => { if (rec) try { rec.abort(); } catch (e) {} }, render: (body, api) => {
+    body.innerHTML = `<div class="vc-status" id="vc-st">${SR ? "Listening…" : "Type it, or tap the mic on your keyboard."}</div>
+      <label class="vc-in">${SR ? `<button class="vc-mic on" id="vc-mic" aria-label="Listen again">${ICON.mic}</button>` : ICON.mic}<input id="vc-txt" placeholder="5x5 bench at 145" autocomplete="off" enterkeyhint="done"></label>
+      <div class="vc-plan" id="vc-plan">${say(null)}</div>
+      <div class="optnote">Try “3 sets of 8 incline at 60” or “145 for 5”. No exercise name logs the one you're on.</div>
+      <button class="bigbtn" id="vc-go" disabled>Log it</button>`;
+    const txt = body.querySelector("#vc-txt"), pl = body.querySelector("#vc-plan"), go1 = body.querySelector("#vc-go"), st = body.querySelector("#vc-st");
+    const upd = () => { const P = txt.value.trim() ? plan(txt.value) : null; pl.textContent = say(P); go1.disabled = !(P && P.ok); };
+    txt.oninput = upd; txt.onkeydown = e => { if (e.key === "Enter" && !go1.disabled) { e.preventDefault(); go1.click(); } };
+    const listen = () => {
+      if (!SR) { txt.focus(); return; }
+      try { rec = new SR(); } catch (e) { st.textContent = "Voice isn't available here. Type it instead."; txt.focus(); return; }
+      rec.lang = "en-US"; rec.interimResults = true; rec.maxAlternatives = 1;
+      const m = body.querySelector("#vc-mic"); if (m) m.classList.add("on"); st.textContent = "Listening…";
+      rec.onresult = ev => { txt.value = [...ev.results].map(r => r[0].transcript).join(" "); upd(); };
+      rec.onerror = ev => { st.textContent = ev.error === "not-allowed" ? "Microphone is blocked. Allow it in settings, or type it." : "Didn't catch that. Tap the mic or type it."; };
+      rec.onend = () => { if (m) m.classList.remove("on"); if (st.textContent === "Listening…") st.textContent = txt.value ? "Check it, then log it." : "Tap the mic to try again."; };
+      try { rec.start(); } catch (e) { st.textContent = "Tap the mic to try again."; }
+    };
+    const m = body.querySelector("#vc-mic"); if (m) m.onclick = listen;
+    go1.onclick = () => {
+      const P = plan(txt.value); if (!P || !P.ok) return;
+      const { e } = P; let left = P.sets, s = 0;
+      while (left > 0 && s < 40) {
+        if (s >= totalSets(e.it, W, sess, e.i)) addSet(W, sess, e.i);
+        const key = setKey(W, sess, e.i, s), v = sget(key) || {};
+        if (!v.d || v.z) { sset(key, { w: P.lb != null ? String(P.lb) : (v.w || ""), r: String(P.reps || e.ds.r), d: 1, t: Date.now() }); left--; }
+        s++;
+      }
+      api.close(); buzz(); toast(`Logged ${P.sets} × ${P.reps}${P.lb ? ` at ${P.lb} lb` : ""} on ${e.name}.`); keep(rerender);
+    };
+    listen(); if (!SR) setTimeout(() => txt.focus(), 300);
+  } });
+}
 
 // Swap / + set / − set / ⋯ under each card in the overview.
 function cardAction(ctx, E, act) {
