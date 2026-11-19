@@ -21,6 +21,9 @@ export function weeksOf(b) {
     if (op.type === "repeat" && arr[at] && !arr[at].pause) { const e = arr[at]; arr.splice(at + 1, 0, { pw: e.pw, rep: arr.filter(x => x.pw === e.pw).length }); }
     if (op.type === "pause") arr.splice(at, 0, { pause: true });
   }
+  // Skipped plan weeks drop out; the block then runs straight on from the next one.
+  const skip = new Set((b.ops || []).filter(o => o.type === "skip").flatMap(o => o.pws || []));
+  if (skip.size) { const kept = arr.filter(e => e.pause || !skip.has(e.pw)); if (kept.some(e => !e.pause)) arr.splice(0, arr.length, ...kept); }
   return arr.map((e, i) => Object.assign({ b: b.id, cw: i + 1 }, e, { key: e.pause ? null : `${b.id > 1 ? "b" + b.id : ""}w${e.pw}${e.rep ? "r" + e.rep : ""}` }));
 }
 export const weekRef = (bid, cw) => { const ws = weeksOf(blockById(bid)); return ws[Math.max(1, Math.min(ws.length, cw)) - 1]; };
@@ -65,6 +68,9 @@ export function removeBlock(id) { if (id === 1) return; save(blocks().filter(b =
 function editOps(bid, fn) { save(blocks().map(b => b.id === bid ? Object.assign({}, b, { ops: fn((b.ops || []).slice()) }) : b)); }
 export const repeatWeek = (bid, cw) => editOps(bid, ops => ops.concat([{ type: "repeat", at: cw }]));
 export const pauseWeek = (bid, cw) => editOps(bid, ops => ops.concat([{ type: "pause", at: cw }]));
+export const skipWeeks = (bid, pws) => editOps(bid, ops => ops.concat([{ type: "skip", pws: [...new Set(pws)].filter(n => Number.isInteger(n) && n > 0) }]));
+export const skippedWeeks = bid => [...new Set((blockById(bid).ops || []).filter(o => o.type === "skip").flatMap(o => o.pws || []))].sort((a, b) => a - b);
+export const unskipAll = bid => editOps(bid, ops => ops.filter(o => o.type !== "skip"));
 export const undoLastChange = bid => editOps(bid, ops => ops.slice(0, -1));
 export const nextMonday = (from = new Date()) => { const d = new Date(from.getFullYear(), from.getMonth(), from.getDate()); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); return isoOf(d); };
 export { isoOf };
