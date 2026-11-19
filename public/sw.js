@@ -1,10 +1,14 @@
 // Offline support. The app is one file, so: page is network-first (new versions
 // arrive when online, cached copy opens offline); fonts and icons are cache-first.
-const CACHE = "hb-v1";
+const CACHE = "hb-v2";
 const SHELL = ["./", "./manifest.webmanifest", "./icon.svg", "./icon-192.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // App shell plus every exercise picture (listed in img/repdb/files.json), so workouts show offline.
+  e.waitUntil(caches.open(CACHE).then(async c => {
+    await c.addAll(SHELL);
+    try { const list = await (await fetch("./img/repdb/files.json")).json(); await c.addAll(list.map(f => "./img/repdb/" + f)); } catch (err) { /* pictures fill in as they're viewed */ }
+  }).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));

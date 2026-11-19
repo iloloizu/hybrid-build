@@ -44,5 +44,7 @@ export function start() {
     for (const fn of popHooks) if (fn()) return;
     handler({ scroll: (e.state && e.state.y) || 0 });
   });
+  // A link or a typed address that only changes the #route.
+  window.addEventListener("hashchange", () => handler({ scroll: 0 }));
   handler({ scroll: 0 });
 }

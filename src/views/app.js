@@ -9,6 +9,7 @@ import { onSwipe } from "../ui/device.js";
 import { keepAwake } from "../ui/device.js";
 import { sheetOpen } from "../ui/sheet.js";
 import { renderDay, stepDay } from "./day.js";
+import { resetZoom } from "./workout.js";
 import { renderWeek, stepWeek } from "./week.js";
 import { renderBlock } from "./block.js";
 import { renderLibrary } from "./library.js";
@@ -31,7 +32,7 @@ function tabFor(r) {
 export function rerender() { draw(route()); }
 function draw(r) {
   if (r.name !== "ex") { stopEx(); ui.view = "plan"; }
-  if (r.name !== "day" && r.name !== "today") keepAwake(false);
+  if (r.name !== "day" && r.name !== "today") { keepAwake(false); resetZoom(); }
   switch (r.name) {
     case "today": { const t = todayTarget(); ui.b = t.b; renderDay(t.w, t.d, true); break; }
     case "day": renderDay(r.w, r.d, false); break;
