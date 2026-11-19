@@ -15,7 +15,10 @@ const ITER = 600000;
 const b64 = u8 => Buffer.from(u8).toString("base64");
 const file = path.join(dir, "index.html");
 const html = fs.readFileSync(file, "utf8");
-const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+// The salt comes from the password itself, so the key stays the same across deploys and a device that
+// unlocked once stays unlocked after every update. (Only the IV is new per build.)
+const salt = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode("hybrid-build-lock-v1:" + pass))).slice(0, 16);
+const iv = crypto.getRandomValues(new Uint8Array(12));
 const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveKey"]);
 const key = await crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: ITER, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt"]);
 const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(html)));
@@ -54,7 +57,7 @@ button:disabled { opacity: .6; }
 <script>
 (() => {
   const D = { s: "${b64(salt)}", i: "${b64(iv)}", c: "${b64(ct)}", n: ${ITER} };
-  const KEY = "hb-lock-" + D.s;
+  const KEY = "hb-lock-" + D.s; // same value on every deploy while the password is unchanged
   const u8 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
   const show = html => { document.open(); document.write(html); document.close(); };
   async function open(raw) {
