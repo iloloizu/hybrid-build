@@ -430,7 +430,7 @@ export const REPDB_IDS = {
   "x-weighted-pushups": "push-up"
 };
 // Our own pictures (generated for this app), used before RepDB's.
-const OWN_PICS = new Set(["broadjump", "bayesian", "backwalk", "yraise"]);
+const OWN_PICS = new Set(["broadjump", "bayesian", "backwalk", "yraise", "x-mid-thigh-pull-use-straps"]);
 export function picFor(id) {
   if (OWN_PICS.has(id)) return { a: `img/own/${id}-start.webp`, b: `img/own/${id}-peak.webp` };
   const r = REPDB_IDS[id]; if (!r) return null;
