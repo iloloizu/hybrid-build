@@ -17,7 +17,7 @@ export function renderWelcome() {
   const a = app(); a.className = "wrap acct welcome";
   document.body.classList.add("bare");
   a.innerHTML = `<div class="wl-hue"></div>
-    <header class="wl-head"><span class="kick">Move</span><h1>Lift. Run. Track it all.</h1>
+    <header class="wl-head"><span class="kick">Stride</span><h1>Lift. Run. Track it all.</h1>
       <p>Pick a plan, log every set, and pick up where you left off on any device.</p></header>
     <div class="wl-acts">
       <button class="bigbtn" id="wl-up">Create account</button>

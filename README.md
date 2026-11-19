@@ -1,4 +1,4 @@
-# Move
+# Stride
 
 Live: https://iloloizu.github.io/hybrid-build/ (every merge to main redeploys it)
 
