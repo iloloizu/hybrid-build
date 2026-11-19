@@ -1,6 +1,6 @@
 # Hybrid Build
 
-Live: https://iloloizu.github.io/hybrid-build/ (password-protected)
+Live: https://iloloizu.github.io/hybrid-build/ (password-protected; deploys on every merge to main)
 
 Ilolo's 10-week strength + marathon hybrid training app.
 
