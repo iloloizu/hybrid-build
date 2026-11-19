@@ -752,3 +752,5 @@ div.pf-row { cursor: default; }
 .pf-row b { font-weight: 600; color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 6px; }
 .pf-row b i { width: 8px; height: 8px; border-radius: 50%; background: var(--done); }
 .pf-row.danger { color: #ff8a8a; }
+.welcome { padding-top: max(24px, env(safe-area-inset-top)); }
+@media (min-width: 700px) and (min-height: 560px) { .welcome { align-content: center; } }
