@@ -196,11 +196,14 @@ function finishSheet(W, d, sess) {
   const trend = r => r.diff == null ? `<em class="new">New</em>` : r.diff > 0 ? `<em class="up">▲ ${r.diff}</em>` : r.diff < 0 ? `<em class="down">▼ ${Math.abs(r.diff)}</em>` : `<em class="same">=</em>`;
   const ups = rows.filter(r => r.diff > 0).length, downs = rows.filter(r => r.diff < 0).length;
   const act = (ACTS[k] || [])[0], R = getRun(k) || (act ? { mi: act.distance_mi ? String(act.distance_mi) : "", min: "" } : {});
+  // Today follows the "post on Done" setting; a past workout goes to Strava only if you switch it on here.
+  const past = k < iso(new Date()), svOK = sess >= 0 && real && STRAVA.connected && STRAVA.canPost;
   openSheet({ title: "Done", render: (body, api) => {
     body.innerHTML = `${tot ? `<div class="stats"><div><b>${vol ? Math.round(vol).toLocaleString() : "—"}</b><span>lb lifted</span></div><div><b>${real}/${tot}</b><span>Sets</span></div></div>` : ""}
       ${rows.length ? `<div class="lbl">How it went<em>${ups ? `${ups} up` : ""}${ups && downs ? " · " : ""}${downs ? `${downs} down` : ""}${!ups && !downs ? "vs last time" : ""}</em></div><div class="liftstats">${rows.map(r => `<div class="ls"><span class="ln">${esc(r.name)}</span><span class="la">${r.a} lb avg</span>${trend(r)}<span class="lv">${Math.round(r.v0).toLocaleString()} lb</span></div>`).join("")}</div>` : ""}
       <div class="lbl">Run today?<em>${act ? "From Strava" : "Skip if you didn't"}</em></div>
       <div class="runlog"><label class="field"><input inputmode="decimal" enterkeyhint="next" id="run-mi" aria-label="Miles run" value="${esc(R.mi)}" placeholder="—"><span>mi</span></label><label class="field"><input inputmode="numeric" enterkeyhint="done" id="run-min" aria-label="Minutes run" value="${esc(R.min)}" placeholder="—"><span>min</span></label><span class="rl-pace" id="run-pace">${pace(R)}</span></div>
+      ${svOK ? `<label class="pf-row svpost"><span><b class="sv-dot"></b>Post to Strava${past ? "<small>Past workout, posts on its own day</small>" : ""}</span><input type="checkbox" class="switch" id="fin-sv"${!past && autoPost() ? " checked" : ""}></label>` : ""}
       <button class="bigbtn" id="fin-go">Finish</button>`;
     const mi = body.querySelector("#run-mi"), min = body.querySelector("#run-min"), upd = () => { body.querySelector("#run-pace").textContent = pace({ mi: mi.value, min: min.value }); };
     mi.oninput = upd; min.oninput = upd;
@@ -210,8 +213,9 @@ function finishSheet(W, d, sess) {
       setRun(k, { mi: mi.value.trim(), min: min.value.trim() }); setFinished(k, true);
       // Close out anything not lifted: 0 reps, marked so it never becomes a remembered weight.
       if (sess >= 0) itemsFor(W, sess).forEach(({ it, i }) => { const nSets = totalSets(it, W, sess, i); for (let s = 0; s < nSets; s++) { const key = setKey(W, sess, i, s), v = sget(key) || {}; if (!v.d) sset(key, Object.assign({}, v, { r: "0", d: 1, z: 1 })); } });
+      const sv = body.querySelector("#fin-sv"), post = svOK && sv && sv.checked;
       api.close(); buzz(30); keepAwake(false); confetti();
-      if (sess >= 0 && real && STRAVA.connected && STRAVA.canPost && autoPost()) sendToStrava({ W, sess, k, vol, real, rows, bwRows, times });
+      if (post) sendToStrava({ W, sess, k, vol, real, rows, bwRows, times });
       setTimeout(() => { rerender(); setTimeout(() => stepDay(1), 650); }, 250);
     };
   } });
