@@ -2,7 +2,8 @@
    The app stays local-first: everything is saved on the device, then copied to the
    signed-in user's rows (user_docs, protected by row-level security). The key below is
    the project's publishable key, which is meant to ship in client code. */
-import { createClient } from "@supabase/supabase-js";
+import { AuthClient } from "@supabase/auth-js";
+import { PostgrestClient } from "@supabase/postgrest-js";
 import { STORE, persistLocal, useRemote, dirty, flush } from "./storage.js";
 import { store } from "./platform/index.js";
 
@@ -11,7 +12,19 @@ const KEY = "sb_publishable_phMJjS_0kzHHGnL93uMUNQ_U_zsPT1G";
 export const APP_URL = "https://iloloizu.github.io/hybrid-build/";
 const here = () => (typeof location !== "undefined" && location.protocol.startsWith("http") ? location.origin + location.pathname : APP_URL);
 
-export const sb = typeof window !== "undefined" ? createClient(URL_, KEY, { auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }) : null;
+// Just the auth and database clients (the full supabase-js bundle doubles the app size).
+function client() {
+  const auth = new AuthClient({ url: URL_ + "/auth/v1", headers: { apikey: KEY }, storageKey: "sb-filqlpwpdfuzazpusgok-auth-token", flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true });
+  const authed = async (input, init = {}) => {
+    const { data } = await auth.getSession();
+    const h = new Headers(init.headers); h.set("apikey", KEY);
+    if (data.session) h.set("Authorization", "Bearer " + data.session.access_token);
+    return fetch(input, Object.assign({}, init, { headers: h }));
+  };
+  const db = new PostgrestClient(URL_ + "/rest/v1", { headers: { apikey: KEY }, fetch: authed });
+  return { auth, from: t => db.from(t) };
+}
+export const sb = typeof window !== "undefined" ? client() : null;
 
 export let USER = null, PROFILE = null, RECOVERY = false;
 const subs = new Set();
