@@ -1,3 +1,5 @@
+import { duplicatePlan } from "../plans/edit.js";
+import { signedIn, displayName } from "../account.js";
 import { avatarBtn } from "./account.js";
 import { ui } from "../state.js";
 import { EX } from "../plan/exercises.js";
@@ -58,12 +60,17 @@ export function renderPlanPage(id) {
     if (!s.items.length) return `<div class="pday"><span class="pd-dow">${DOW[d]}</span><b>${esc(s.name)}</b><span class="pd-sub">${s.kind === "run" ? "Long run" : ""}</span></div>`;
     return `<div class="pday"><span class="pd-dow">${DOW[d]}</span><b>${esc(s.name)}</b><ul>${s.items.map(it => { const ds = dose(it, w); if (!ds) return ""; const e = EX[it.x]; return `<li><button data-ex="${it.x}"><span class="thumb">${thumbHTML(it.x)}</span><span class="pi-name">${esc(it.label || e.name)}${it.optional ? ` <em>optional</em>` : ""}</span><span class="pi-dose">${ds.s}×${esc(ds.r)}${ds.note ? `<small>${esc(ds.note)}</small>` : ""}</span></button></li>`; }).join("")}</ul></div>`;
   }).join("")}</div>`;
-  h += `<div class="trybar"><button class="bigbtn" id="tryplan">${act ? "Start it again" : "Try this plan"}</button>${customPlans().some(p => p.id === id) ? `<div class="btnrow"><button class="textbtn" id="copyplan">Copy plan</button><button class="textbtn" id="rmplan">Remove this plan</button></div>` : ""}</div>`;
+  const mine = customPlans().some(p => p.id === id);
+  h += `<div class="trybar"><button class="bigbtn" id="tryplan">${act ? "Start it again" : "Try this plan"}</button>
+    <div class="btnrow">${mine ? `<button class="bigbtn ghost" id="editplan">${ICON.grid}<span>Edit plan</span></button>` : ""}<button class="bigbtn ghost" id="dupplan">${ICON.plus}<span>${mine ? "Duplicate" : "Duplicate & edit"}</span></button></div>
+    ${mine ? `<div class="btnrow"><button class="textbtn" id="copyplan">Copy plan</button><button class="textbtn" id="rmplan">Remove this plan</button></div>` : ""}</div>`;
   app.innerHTML = h;
   app.querySelectorAll("[data-pw]").forEach(b => b.onclick = () => { pageWeek[id] = +b.dataset.pw; rerender(); });
   app.querySelectorAll("[data-ex]").forEach(b => b.onclick = () => go(`#/ex/${b.dataset.ex}`));
   document.getElementById("tb-back").onclick = () => back("#/explore");
   document.getElementById("tryplan").onclick = () => trySheet(P);
+  document.getElementById("dupplan").onclick = () => { const c = duplicatePlan(id, signedIn() ? displayName() : ""); toast(`${c.name} made. Edit it any way you like.`); go(`#/edit/${encodeURIComponent(c.id)}`); };
+  const ep = document.getElementById("editplan"); if (ep) ep.onclick = () => go(`#/edit/${encodeURIComponent(id)}`);
   const cp = document.getElementById("copyplan");
   if (cp) cp.onclick = async () => { const raw = JSON.stringify(customPlans().find(p => p.id === id)); try { await navigator.clipboard.writeText(raw); toast("Plan copied. Paste it into Stride on another device."); } catch (e) { pasteSheet(raw); } };
   twoTap(document.getElementById("rmplan"), "Tap again to remove this plan", () => { removePlan(id); toast("Plan removed."); back("#/explore"); });
