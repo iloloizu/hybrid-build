@@ -1,3 +1,4 @@
+import { SWATCHES, getTheme, setTheme } from "../ui/theme.js";
 import { ui } from "../state.js";
 import { PHASES, phaseOf, phaseName, fmt } from "../plan/plan.js";
 import { blocks, blockById, weeksOf, weekLabel, dayDate, blockEnd, parseISO, startBlock, removeBlock, nextMonday, phaseOfWeek } from "../plan/blocks.js";
@@ -35,9 +36,13 @@ export function renderBlock() {
   }
   h += `</div><button class="bigbtn ghost" id="newblock">Start a new block</button>`;
   if (B.id !== 1 && B.id === Math.max(...all.map(b => b.id))) h += `<button class="textbtn" id="delblock">Delete Block ${B.id}</button>`;
+  const th = getTheme(), custom = th !== "auto" && !SWATCHES.some(([v]) => v === th);
+  h += `<div class="lbl">Your color</div><section class="swatches" role="radiogroup" aria-label="App color">${SWATCHES.map(([v, n]) => `<button role="radio" aria-checked="${th === v}" aria-label="${n}" data-th="${v}" class="sw${v === "auto" ? " auto" : ""}" style="--c:${v === "auto" ? "#7cf2c2" : v}"><i></i><span>${n}</span></button>`).join("")}<label class="sw custom" aria-checked="${custom}" style="--c:${custom ? th : "#888"}"><i></i><span>Custom</span><input type="color" id="thpick" value="${th === "auto" ? "#7cf2c2" : th}" aria-label="Custom color"></label></section>`;
   h += `<div class="lbl">Your data</div>` + saveBar();
   h += `<div class="lbl">About</div><section class="about"><p>Hybrid Build. Exercise data by <a href="https://repdb.co" target="_blank" rel="noopener noreferrer">RepDB (repdb.co)</a>. Exercise instructions cite their sources on each exercise screen.</p></section>`;
   app.innerHTML = h;
+  app.querySelectorAll("[data-th]").forEach(b => b.onclick = () => { setTheme(b.dataset.th); rerender(); });
+  const pick = document.getElementById("thpick"); if (pick) pick.onchange = () => { setTheme(pick.value); rerender(); };
   app.querySelectorAll("[data-w]").forEach(b => b.onclick = () => go(`#/w/${b.dataset.w}`));
   app.querySelectorAll("[data-b]").forEach(b => b.onclick = () => { ui.b = +b.dataset.b; ui.week = 1; rerender(); });
   document.getElementById("newblock").onclick = newBlockSheet;

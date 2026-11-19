@@ -4,6 +4,8 @@ import { connect } from "./storage.js";
 import { boot, rerender } from "./views/app.js";
 import { sheetOpen } from "./ui/sheet.js";
 import { keep } from "./views/common.js";
+import { applyTheme } from "./ui/theme.js";
+applyTheme();
 
 // Re-render when synced data arrives, unless the user is typing or a sheet is open.
 const safeRender = () => { if (ui.view !== "ex" && !sheetOpen() && !(document.activeElement && document.activeElement.tagName === "INPUT")) keep(rerender); };
