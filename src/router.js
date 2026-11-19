@@ -16,6 +16,7 @@ export function parse(h) {
     return { name: "week", w: wk };
   }
   if (p[0] === "block") return { name: "block" };
+  if (p[0] === "settings") return { name: "settings" };
   if (p[0] === "exercises") return { name: "library" };
   if (p[0] === "explore") return { name: "explore" };
   if (p[0] === "plan" && p[1]) return { name: "plan", id: decodeURIComponent(p[1]) };

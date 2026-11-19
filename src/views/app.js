@@ -12,6 +12,7 @@ import { renderDay, stepDay } from "./day.js";
 import { resetZoom } from "./workout.js";
 import { renderWeek, stepWeek } from "./week.js";
 import { renderBlock } from "./block.js";
+import { renderSettings } from "./settings.js";
 import { renderLibrary } from "./library.js";
 import { renderEx, stopEx } from "./exercise.js";
 import { renderPoseGrid } from "./posegrid.js";
@@ -26,6 +27,7 @@ function tabFor(r) {
   if (r.name === "day") { const t = todayWD(); return t && t.b === ui.b && t.w === r.w && t.d === r.d && last && last.tab === "today" ? "today" : "week"; }
   if (r.name === "ex") return (last && last.tab) || "library";
   if (r.name === "plan") return "explore";
+  if (r.name === "settings") return "block";
   return r.name === "library" ? "library" : r.name;
 }
 
@@ -38,6 +40,7 @@ function draw(r) {
     case "day": renderDay(r.w, r.d, false); break;
     case "week": renderWeek(r.w || ui.week || 1); break;
     case "block": renderBlock(); break;
+    case "settings": renderSettings(); break;
     case "library": renderLibrary(); break;
     case "explore": renderExplore(); break;
     case "plan": renderPlanPage(r.id); break;

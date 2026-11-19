@@ -1,4 +1,4 @@
-import { SWATCHES, getTheme, setTheme } from "../ui/theme.js";
+import { ICON } from "../ui/icons.js";
 import { ui } from "../state.js";
 import { PHASES, phaseOf, phaseName, fmt } from "../plan/plan.js";
 import { blocks, blockById, weeksOf, weekLabel, dayDate, blockEnd, parseISO, startBlock, removeBlock, nextMonday, phaseOfWeek } from "../plan/blocks.js";
@@ -10,7 +10,6 @@ import { topbar } from "../ui/topbar.js";
 import { toast } from "../ui/toast.js";
 import { openSheet } from "../ui/sheet.js";
 import { todayWD } from "./today.js";
-import { saveBar, bindSaveBar } from "./savebar.js";
 import { rerender } from "./app.js";
 import { twoTap } from "../ui/confirm.js";
 
@@ -22,7 +21,7 @@ export function weekProgress(W) {
 export function renderBlock() {
   const app = document.getElementById("app"); app.className = "wrap block";
   const B = blockById(ui.b), all = blocks(), t = todayWD();
-  let h = topbar({ title: `Block ${B.id}`, sub: `${planById(B.plan || "hybrid").short} · ${fmt(parseISO(B.start))} – ${fmt(blockEnd(B))}` });
+  let h = topbar({ title: `Block ${B.id}`, sub: `${planById(B.plan || "hybrid").short} · ${fmt(parseISO(B.start))} – ${fmt(blockEnd(B))}`, right: `<button class="iconbtn" id="gear" aria-label="Settings">${ICON.gear}</button>` });
   if (all.length > 1) h += `<div class="chips noswipe" role="group" aria-label="Blocks">${all.map(b => `<button data-b="${b.id}" aria-pressed="${b.id === B.id}">Block ${b.id} · ${planById(b.plan || "hybrid").short}</button>`).join("")}</div>`;
   let last = null;
   h += `<div class="weeklist">`;
@@ -36,18 +35,13 @@ export function renderBlock() {
   }
   h += `</div><button class="bigbtn ghost" id="newblock">Start a new block</button>`;
   if (B.id !== 1 && B.id === Math.max(...all.map(b => b.id))) h += `<button class="textbtn" id="delblock">Delete Block ${B.id}</button>`;
-  const th = getTheme(), custom = th !== "auto" && !SWATCHES.some(([v]) => v === th);
-  h += `<div class="lbl">Your color</div><section class="swatches" role="radiogroup" aria-label="App color">${SWATCHES.map(([v, n]) => `<button role="radio" aria-checked="${th === v}" aria-label="${n}" data-th="${v}" class="sw${v === "auto" ? " auto" : ""}" style="--c:${v === "auto" ? "#7cf2c2" : v}"><i></i><span>${n}</span></button>`).join("")}<label class="sw custom" aria-checked="${custom}" style="--c:${custom ? th : "#888"}"><i></i><span>Custom</span><input type="color" id="thpick" value="${th === "auto" ? "#7cf2c2" : th}" aria-label="Custom color"></label></section>`;
-  h += `<div class="lbl">Your data</div>` + saveBar();
   app.innerHTML = h;
-  app.querySelectorAll("[data-th]").forEach(b => b.onclick = () => { setTheme(b.dataset.th); rerender(); });
-  const pick = document.getElementById("thpick"); if (pick) pick.onchange = () => { setTheme(pick.value); rerender(); };
+  document.getElementById("gear").onclick = () => go("#/settings");
   app.querySelectorAll("[data-w]").forEach(b => b.onclick = () => go(`#/w/${b.dataset.w}`));
   app.querySelectorAll("[data-b]").forEach(b => b.onclick = () => { ui.b = +b.dataset.b; ui.week = 1; rerender(); });
   document.getElementById("newblock").onclick = newBlockSheet;
   const del = document.getElementById("delblock");
   twoTap(del, `Tap again to delete Block ${B.id}`, () => { removeBlock(B.id); ui.b = 1; toast(`Block ${B.id} deleted.`); rerender(); });
-  bindSaveBar();
 }
 
 const B0 = () => blockById(ui.b);
