@@ -1,6 +1,6 @@
 // Offline support. The app is one file, so: page is network-first (new versions
 // arrive when online, cached copy opens offline); fonts and icons are cache-first.
-const CACHE = "hb-v4";
+const CACHE = "hb-v5";
 const SHELL = ["./", "./manifest.webmanifest", "./icon.svg", "./icon-192.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
