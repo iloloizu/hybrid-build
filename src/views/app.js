@@ -1,3 +1,4 @@
+import { renderPlanEdit } from "./planedit.js";
 import { renderWelcome, renderAuth, renderProfile } from "./account.js";
 import { ui } from "../state.js";
 import { DAYS } from "../plan/plan.js";
@@ -27,7 +28,7 @@ function tabFor(r) {
   if (r.name === "today") return "today";
   if (r.name === "day") { const t = todayWD(); return t && t.b === ui.b && t.w === r.w && t.d === r.d ? "today" : "week"; }
   if (r.name === "ex") return (last && last.tab) || "library";
-  if (r.name === "plan") return "explore";
+  if (r.name === "plan" || r.name === "edit") return "explore";
   if (r.name === "settings" || r.name === "profile") return r.name;
   if (["signup", "signin", "reset", "welcome"].includes(r.name)) return "profile";
   return r.name === "library" ? "library" : r.name;
@@ -50,6 +51,7 @@ function draw(r) {
     case "library": renderLibrary(); break;
     case "explore": renderExplore(); break;
     case "plan": renderPlanPage(r.id); break;
+    case "edit": renderPlanEdit(r.id); break;
     case "ex": ui.view = "ex"; renderEx(r.id, from); break;
     case "posegrid": renderPoseGrid(); return;
   }

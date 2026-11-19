@@ -38,7 +38,8 @@ function parseLines(lines, nWeeks, plan) {
     const list = doses.split(";").map(s => s.trim()).filter(Boolean).map(parseDose);
     const ds = Array.from({ length: nWeeks }, (_, k) => list[Math.min(k, list.length - 1)] || { s: 3, r: "10", note: "" });
     const f = flags.split(/[\s,]+/);
-    return { x, label: name, ds, tag: f.includes("main") ? "main" : undefined, core: f.includes("core"), cardio: f.includes("cardio"), optional: f.includes("opt"), bw: f.includes("cardio") || f.includes("core") ? 1 : undefined };
+    const ssf = f.find(t => /^ss[1-9]$/.test(t));
+    return { x, label: name, ds, ss: ssf ? +ssf.slice(2) : undefined, tag: f.includes("main") ? "main" : undefined, core: f.includes("core"), cardio: f.includes("cardio"), optional: f.includes("opt"), bw: f.includes("cardio") || f.includes("core") ? 1 : undefined };
   });
 }
 // Name a session from what it trains when the plan doesn't: "Chest + Triceps", "Legs".
@@ -169,7 +170,8 @@ function cleanPlan(src) {
   });
   weeks = weeks || Math.max(...phases.map(ph => ph.to));
   if (!phases.some(ph => ph.days.some(Boolean))) throw new Error("No exercises found");
-  return { id: "c-" + slug(name), name, by: cleanText(src.by, LIMIT.name) || "Imported", short: cleanText(src.short, LIMIT.short) || name.split(" ")[0].slice(0, LIMIT.short),
+  const keepId = typeof src.id === "string" && /^c-[a-z0-9-]{1,60}$/.test(src.id) ? src.id : null;
+  return { id: keepId || "c-" + slug(name), name, from: typeof src.from === "string" ? cleanText(src.from, 40) : undefined, by: cleanText(src.by, LIMIT.name) || "Imported", short: cleanText(src.short, LIMIT.short) || name.split(" ")[0].slice(0, LIMIT.short),
     blurb: cleanText(src.blurb, LIMIT.blurb), note: cleanText(src.note, LIMIT.blurb), weeks, phases };
 }
 export function importPlan(text) {
@@ -180,6 +182,13 @@ export function importPlan(text) {
   sset("plans|custom", customPlans().filter(x => x.id !== p.id).concat([p]));
   return p;
 }
+// Save an edited or duplicated plan (same cleaning as imports). Returns the saved plan.
+export function savePlan(raw) {
+  const p = cleanPlan(raw); build(p);
+  sset("plans|custom", customPlans().filter(x => x.id !== p.id).concat([p]));
+  return p;
+}
+export const uniqueId = name => { let base = "c-" + (slug(name) || "plan"), id = base, n = 2; while (allPlans().some(p => p.id === id)) id = `${base}-${n++}`; return id; };
 export function removePlan(id) { sset("plans|custom", customPlans().filter(x => x.id !== id)); }
 // Build all built-in plans now so their exercises are in the library.
 [SIMON, AWO, AI].forEach(p => planById(p.id));
