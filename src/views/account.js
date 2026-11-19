@@ -61,7 +61,7 @@ export function renderAuth(mode) {
       if (up) {
         const r = await signUp(email, pw, name);
         if (r.confirm) { renderCheckEmail(email, "confirm"); return; }
-        toast("Account created."); go("#/profile", { replace: true });
+        toast("Account created. Welcome!"); go("#/today", { replace: true });
       } else if (reset) { await sendReset(email); renderCheckEmail(email, "reset"); return; }
       else { await signIn(email, pw); toast(`Signed in. Welcome back.`); go("#/today", { replace: true }); }
     } catch (x) { err.textContent = x.message; }
