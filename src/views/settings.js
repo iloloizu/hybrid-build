@@ -26,7 +26,7 @@ export function renderSettings() {
   h += accountCard();
   h += `<div class="lbl">Your color</div><section class="swatches" role="radiogroup" aria-label="App color">${SWATCHES.map(([v, n]) => `<button role="radio" aria-checked="${th === v}" aria-label="${n}" data-th="${v}" class="sw${v === "auto" ? " auto" : ""}" style="--c:${v === "auto" ? "#7cf2c2" : v}"><i></i><span>${n}</span></button>`).join("")}<label class="sw custom" aria-checked="${custom}" style="--c:${custom ? th : "#888"}"><i></i><span>Custom</span><input type="color" id="thpick" value="${th === "auto" ? "#7cf2c2" : th}" aria-label="Custom color"></label></section>`;
   h += `<div class="lbl">Your data</div>` + saveBar();
-  h += `<div class="lbl">Contact us</div><section class="about"><p>Found a problem or have an idea? Email <a href="mailto:${CONTACT}?subject=Hybrid%20Build">${CONTACT}</a>.</p></section>`;
+  h += `<div class="lbl">Contact us</div><section class="about"><p>Found a problem or have an idea? Email <a href="mailto:${CONTACT}?subject=Move%20app">${CONTACT}</a>.</p></section>`;
   h += `<div class="lbl">About</div><section class="about credits">
     <p><b>Exercise pictures</b><br>Exercise data by <a href="https://repdb.co" target="_blank" rel="noopener noreferrer">RepDB (repdb.co)</a>. Some photos from <a href="https://github.com/yuhonas/free-exercise-db" target="_blank" rel="noopener noreferrer">Free Exercise DB</a> (public domain).</p>
     <p><b>Exercise explanations</b><br>How-to steps and tips are backed by ${refs} references, listed under Sources on each exercise. They come from:</p>
