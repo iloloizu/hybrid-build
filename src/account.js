@@ -59,7 +59,13 @@ export async function signUp(email, password, name) {
   return { confirm: false };
 }
 export const signIn = (email, password) => run(sb.auth.signInWithPassword({ email, password }));
-export const sendReset = email => run(sb.auth.resetPasswordForEmail(email, { redirectTo: here() }));
+export async function sendReset(email) {
+  try { await run(sb.auth.resetPasswordForEmail(email, { redirectTo: here() })); }
+  catch (e) {
+    if (/rate limit|connection/i.test(e.message)) throw e;
+    throw new Error("We couldn't send a reset email to that address. Email iloloizu97@gmail.com and we'll reset it for you.");
+  }
+}
 export async function setPassword(password) { await run(sb.auth.updateUser({ password })); RECOVERY = false; emit(); }
 export async function signOut() {
   await flush();
